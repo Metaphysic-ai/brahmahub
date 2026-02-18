@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
-import { AppSidebar } from './AppSidebar';
-import { AppBreadcrumb } from './AppBreadcrumb';
-import { GlobalSearch } from '@/components/GlobalSearch';
+import { useCallback, useState } from "react";
+import { Outlet } from "react-router-dom";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { AppBreadcrumb } from "./AppBreadcrumb";
+import { AppSidebar } from "./AppSidebar";
 
 export function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);

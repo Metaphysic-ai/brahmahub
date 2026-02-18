@@ -5,9 +5,9 @@
  * DGX machines mount it at /home/jovyan/x.
  */
 
-const LONG_PREFIX = '/mnt/data/DGX_SHARE/SHOTGRID_SYNC';
-const SHORT_PREFIX = '/mnt/x';
-const DGX_PREFIX = '/home/jovyan/x';
+const LONG_PREFIX = "/mnt/data/DGX_SHARE/SHOTGRID_SYNC";
+const SHORT_PREFIX = "/mnt/x";
+const DGX_PREFIX = "/home/jovyan/x";
 
 /** Normalise a path for display — collapse the long mount to /mnt/x/ */
 export function displayPath(path: string): string {

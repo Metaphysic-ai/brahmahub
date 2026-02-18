@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import { Copy, Check, Film, ChevronDown, ChevronRight } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { PackageSummary } from '@/types';
-import { formatResolution } from '@/lib/formatters';
-import { displayPath } from '@/lib/paths';
-import { PoseMatrix } from './PoseMatrix';
+import { Check, ChevronDown, ChevronRight, Copy, Film } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatResolution } from "@/lib/formatters";
+import { displayPath } from "@/lib/paths";
+import type { PackageSummary } from "@/types";
+import { PoseMatrix } from "./PoseMatrix";
 
 function StatItem({ label, value }: { label: string; value: string | number | null | undefined }) {
-  if (value == null || value === '') return null;
+  if (value == null || value === "") return null;
   return (
     <div className="space-y-0.5">
       <p className="text-2xs text-muted-foreground/60 uppercase tracking-wider">{label}</p>
@@ -44,7 +44,7 @@ function CopyableSourcePath({ path, filename }: { path: string; filename?: strin
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="text-xs text-foreground/90 font-medium font-mono-path truncate cursor-default">
-            {filename || path.split('/').pop()}
+            {filename || path.split("/").pop()}
           </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-lg break-all font-mono-path text-xs">
@@ -58,7 +58,13 @@ function CopyableSourcePath({ path, filename }: { path: string; filename?: strin
   );
 }
 
-export function PackageSummaryCard({ summary, packageType, onShowGrid, selectedPoseBins, onPoseBinSelectionChange }: {
+export function PackageSummaryCard({
+  summary,
+  packageType,
+  onShowGrid,
+  selectedPoseBins,
+  onPoseBinSelectionChange,
+}: {
   summary: PackageSummary;
   packageType: string;
   onShowGrid?: () => void;
@@ -66,71 +72,51 @@ export function PackageSummaryCard({ summary, packageType, onShowGrid, selectedP
   onPoseBinSelectionChange?: (bins: Set<string>) => void;
 }) {
   const [poseOpen, setPoseOpen] = useState(false);
-  const isVfx = packageType === 'vfx';
+  const isVfx = packageType === "vfx";
   const hasFaceData = summary.face_types && summary.face_types.length > 0;
 
   return (
     <div className="rounded-lg border border-border/30 bg-card/60 p-4 space-y-3">
       <h3 className="text-xs font-medium text-muted-foreground">
-        {isVfx && hasFaceData ? 'Dataset Summary' : 'Package Overview'}
+        {isVfx && hasFaceData ? "Dataset Summary" : "Package Overview"}
       </h3>
 
       {isVfx && hasFaceData ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
-          <StatItem
-            label="Source Resolution"
-            value={formatResolution(summary.source_width, summary.source_height)}
-          />
-          <StatItem
-            label="Output Resolution"
-            value={formatResolution(summary.common_width, summary.common_height)}
-          />
+          <StatItem label="Source Resolution" value={formatResolution(summary.source_width, summary.source_height)} />
+          <StatItem label="Output Resolution" value={formatResolution(summary.common_width, summary.common_height)} />
           <StatItem
             label="Aligned Images"
             value={summary.aligned_count > 0 ? summary.aligned_count.toLocaleString() : null}
           />
-          <StatItem
-            label="Yaw Range"
-            value={formatAngleRange(summary.yaw_min, summary.yaw_max)}
-          />
-          <StatItem
-            label="Pitch Range"
-            value={formatAngleRange(summary.pitch_min, summary.pitch_max)}
-          />
+          <StatItem label="Yaw Range" value={formatAngleRange(summary.yaw_min, summary.yaw_max)} />
+          <StatItem label="Pitch Range" value={formatAngleRange(summary.pitch_min, summary.pitch_max)} />
           <StatItem
             label="Avg Sharpness"
             value={summary.avg_sharpness != null ? summary.avg_sharpness.toFixed(2) : null}
           />
-          <StatItem
-            label="Cameras"
-            value={summary.cameras?.join(', ')}
-          />
+          <StatItem label="Cameras" value={summary.cameras?.join(", ")} />
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
           <StatItem
             label="Assets"
-            value={[
-              summary.video_count > 0 ? `${summary.video_count} videos` : null,
-              summary.image_count > 0 ? `${summary.image_count} images` : null,
-            ].filter(Boolean).join(' \u00B7 ') || `${summary.total_assets} files`}
+            value={
+              [
+                summary.video_count > 0 ? `${summary.video_count} videos` : null,
+                summary.image_count > 0 ? `${summary.image_count} images` : null,
+              ]
+                .filter(Boolean)
+                .join(" \u00B7 ") || `${summary.total_assets} files`
+            }
           />
           <StatItem
             label="Duration"
             value={summary.total_duration > 0 ? formatLongDuration(summary.total_duration) : null}
           />
-          <StatItem
-            label="Resolution"
-            value={formatResolution(summary.common_width, summary.common_height)}
-          />
-          <StatItem
-            label="Codecs"
-            value={summary.codecs?.join(', ')}
-          />
-          <StatItem
-            label="Cameras"
-            value={summary.cameras?.join(', ')}
-          />
+          <StatItem label="Resolution" value={formatResolution(summary.common_width, summary.common_height)} />
+          <StatItem label="Codecs" value={summary.codecs?.join(", ")} />
+          <StatItem label="Cameras" value={summary.cameras?.join(", ")} />
           <StatItem
             label="Picked Up"
             value={summary.picked_up_count > 0 ? `${summary.picked_up_count} / ${summary.total_assets}` : null}
@@ -159,7 +145,12 @@ export function PackageSummaryCard({ summary, packageType, onShowGrid, selectedP
       {isVfx && (summary.grid_asset_id || summary.source_video_path) && (
         <div className="border-t border-border/20 pt-3 flex items-center gap-4 flex-wrap">
           {summary.grid_asset_id && onShowGrid && (
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 bg-dataset/5 border-dataset/20 text-dataset-foreground hover:bg-dataset/10" onClick={onShowGrid}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5 bg-dataset/5 border-dataset/20 text-dataset-foreground hover:bg-dataset/10"
+              onClick={onShowGrid}
+            >
               <Film size={12} />
               Show Grid Video
             </Button>

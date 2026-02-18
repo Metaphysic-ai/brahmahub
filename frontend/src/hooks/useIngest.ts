@@ -1,5 +1,5 @@
-import { useMutation } from '@tanstack/react-query';
-import { analyzePath } from '@/services/ingest';
+import { useMutation } from "@tanstack/react-query";
+import { analyzePath } from "@/services/ingest";
 
 export function useAnalyzePath() {
   return useMutation({

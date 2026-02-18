@@ -1,48 +1,59 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Loader2, Package, ChevronDown, ChevronRight, Check, FolderSymlink } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useToast } from '@/hooks/use-toast';
-import { useProjects, useCreateProject } from '@/hooks/useProjects';
-import { useSubjects } from '@/hooks/useSubjects';
-import { useAnalyzePath } from '@/hooks/useIngest';
-import { executeIngestStream, fetchDatasetDirs, resolveDatasets } from '@/services/ingest';
-import { formatBytes, pluralize } from '@/lib/formatters';
-import type { AnalysisResult, SubjectAnalysis, DatasetSuggestion, DatasetMapping } from '@/types';
-import type { IngestStreamEvent } from '@/services/ingest';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { Check, ChevronDown, ChevronRight, FolderSymlink, Loader2, Package } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useAnalyzePath } from "@/hooks/useIngest";
+import { useCreateProject, useProjects } from "@/hooks/useProjects";
+import { useSubjects } from "@/hooks/useSubjects";
+import { formatBytes, pluralize } from "@/lib/formatters";
+import type { IngestStreamEvent } from "@/services/ingest";
+import { executeIngestStream, fetchDatasetDirs, resolveDatasets } from "@/services/ingest";
+import type { AnalysisResult, DatasetMapping, DatasetSuggestion, SubjectAnalysis } from "@/types";
 
 function normalizeSubjectName(name: string): string {
-  return name.trim().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return name
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-type Step = 'input' | 'preview' | 'datasets' | 'confirm' | 'ingesting' | 'done';
+type Step = "input" | "preview" | "datasets" | "confirm" | "ingesting" | "done";
 
 interface DatasetMappingState {
   dir: string;
   isNew: boolean;
-  status: 'matched' | 'review' | 'new' | 'skip';
+  status: "matched" | "review" | "new" | "skip";
 }
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId?: string;
-  forcedPackageType?: 'atman' | 'vfx';
+  forcedPackageType?: "atman" | "vfx";
 }
 
 interface VirtualizedFileListProps {
-  files: SubjectAnalysis['files'];
+  files: SubjectAnalysis["files"];
   subjectIdx: number;
   toggleFileSelected: (subjectIdx: number, fileIdx: number) => void;
 }
@@ -67,27 +78,31 @@ function VirtualizedFileList({ files, subjectIdx, toggleFileSelected }: Virtuali
         <div>Asset</div>
       </div>
       <div ref={parentRef} className="max-h-48 overflow-y-auto">
-        <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-          {virtualizer.getVirtualItems().map(virtualRow => {
+        <div style={{ height: `${virtualizer.getTotalSize()}px`, width: "100%", position: "relative" }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
             const file = files[virtualRow.index];
             const fi = virtualRow.index;
             return (
               <div
                 key={fi}
-                className={`grid grid-cols-[2rem_1fr_3.5rem_4rem_4rem_4rem] text-xs items-center px-1 hover:bg-muted/20 ${!file.selected ? 'opacity-40' : ''}`}
+                className={`grid grid-cols-[2rem_1fr_3.5rem_4rem_4rem_4rem] text-xs items-center px-1 hover:bg-muted/20 ${!file.selected ? "opacity-40" : ""}`}
                 style={{
-                  position: 'absolute',
+                  position: "absolute",
                   top: 0,
                   left: 0,
-                  width: '100%',
+                  width: "100%",
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
                 <div className="flex justify-center">
-                  <Checkbox checked={file.selected} onCheckedChange={() => toggleFileSelected(subjectIdx, fi)} className="h-3 w-3" />
+                  <Checkbox
+                    checked={file.selected}
+                    onCheckedChange={() => toggleFileSelected(subjectIdx, fi)}
+                    className="h-3 w-3"
+                  />
                 </div>
-                <div className="truncate font-mono">{file.original_path.split('/').pop()}</div>
+                <div className="truncate font-mono">{file.original_path.split("/").pop()}</div>
                 <div>{file.file_type}</div>
                 <div className="text-right">{formatBytes(file.size_bytes)}</div>
                 <div>{file.camera}</div>
@@ -108,22 +123,22 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
   const { data: projects } = useProjects();
   const createProject = useCreateProject();
 
-  const [step, setStep] = useState<Step>('input');
+  const [step, setStep] = useState<Step>("input");
 
-  const [selectedProjectId, setSelectedProjectId] = useState(projectIdProp ?? '');
+  const [selectedProjectId, setSelectedProjectId] = useState(projectIdProp ?? "");
   const [creatingProject, setCreatingProject] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectType, setNewProjectType] = useState<'atman' | 'vfx'>('atman');
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectType, setNewProjectType] = useState<"atman" | "vfx">("atman");
 
   const effectiveProjectId = projectIdProp ?? selectedProjectId;
 
   const { data: existingSubjects } = useSubjects(effectiveProjectId || undefined);
 
-  const [sourcePath, setSourcePath] = useState('');
-  const [packageName, setPackageName] = useState('');
+  const [sourcePath, setSourcePath] = useState("");
+  const [packageName, setPackageName] = useState("");
   const [packageNameTouched, setPackageNameTouched] = useState(false);
-  const [description, setDescription] = useState('');
-  const [tagsInput, setTagsInput] = useState('');
+  const [description, setDescription] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [subjects, setSubjects] = useState<SubjectAnalysis[]>([]);
@@ -133,44 +148,55 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
   // Dataset mapping state
   const [datasetMappings, setDatasetMappings] = useState<Map<string, DatasetMappingState>>(new Map());
   const [allDatasetDirs, setAllDatasetDirs] = useState<string[]>([]);
-  const [datasetsRoot, setDatasetsRoot] = useState('');
+  const [datasetsRoot, setDatasetsRoot] = useState("");
   const [datasetSuggestions, setDatasetSuggestions] = useState<Map<string, DatasetSuggestion[]>>(new Map());
   const [skipDatasets, setSkipDatasets] = useState(false);
   const [datasetsLoading, setDatasetsLoading] = useState(false);
   const [browseDirs, setBrowseDirs] = useState<Set<string>>(new Set());
 
   const [progress, setProgress] = useState<{
-    current: number; total: number; file: string; step: string; elapsed: number;
+    current: number;
+    total: number;
+    file: string;
+    step: string;
+    elapsed: number;
   } | null>(null);
-  const progressRef = useRef<{ current: number; total: number; file: string; step: string; elapsed: number } | null>(null);
+  const progressRef = useRef<{ current: number; total: number; file: string; step: string; elapsed: number } | null>(
+    null,
+  );
   const rafRef = useRef<number>();
-  const [result, setResult] = useState<{ package_id: string; file_count: number; subjects_created: string[] } | null>(null);
+  const [result, setResult] = useState<{ package_id: string; file_count: number; subjects_created: string[] } | null>(
+    null,
+  );
 
   const reset = useCallback(() => {
-    setStep('input');
-    setSelectedProjectId(projectIdProp ?? '');
+    setStep("input");
+    setSelectedProjectId(projectIdProp ?? "");
     setCreatingProject(false);
-    setNewProjectName('');
-    setNewProjectType('atman');
-    setSourcePath('');
-    setPackageName('');
+    setNewProjectName("");
+    setNewProjectType("atman");
+    setSourcePath("");
+    setPackageName("");
     setPackageNameTouched(false);
-    setDescription('');
-    setTagsInput('');
+    setDescription("");
+    setTagsInput("");
     setAnalysis(null);
     setSubjects([]);
     setExpandedSubjects(new Set());
     setSkipProxies(false);
     setDatasetMappings(new Map());
     setAllDatasetDirs([]);
-    setDatasetsRoot('');
+    setDatasetsRoot("");
     setDatasetSuggestions(new Map());
     setSkipDatasets(false);
     setDatasetsLoading(false);
     setBrowseDirs(new Set());
     setProgress(null);
     progressRef.current = null;
-    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = undefined; }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = undefined;
+    }
     setResult(null);
   }, [projectIdProp]);
 
@@ -180,16 +206,16 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
     onOpenChange(isOpen);
     if (!isOpen && hadResult) {
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['packages'] });
-        queryClient.invalidateQueries({ queryKey: ['subjects'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        queryClient.invalidateQueries({ queryKey: ["packages"] });
+        queryClient.invalidateQueries({ queryKey: ["subjects"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
       }, 100);
     }
   };
 
   const handleProjectSelect = (value: string) => {
-    if (value === '__new__') {
+    if (value === "__new__") {
       setCreatingProject(true);
     } else {
       setCreatingProject(false);
@@ -206,9 +232,9 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
       });
       setSelectedProjectId(created.id);
       setCreatingProject(false);
-      toast({ title: 'Project created', description: newProjectName });
+      toast({ title: "Project created", description: newProjectName });
     } catch (err: any) {
-      toast({ title: 'Failed to create project', description: err.message, variant: 'destructive' });
+      toast({ title: "Failed to create project", description: err.message, variant: "destructive" });
     }
   };
 
@@ -219,37 +245,32 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
       const effectiveResult = forcedPackageType ? { ...res, package_type: forcedPackageType } : res;
       setAnalysis(effectiveResult);
       // Auto-rename subjects that fuzzy-match a single existing subject
-      const mapped = res.subjects.map(s => {
+      const mapped = res.subjects.map((s) => {
         const match = findSubjectMatch(s.name);
-        if (match.type === 'exact' || (match.type === 'fuzzy' && match.matches.length === 1)) {
+        if (match.type === "exact" || (match.type === "fuzzy" && match.matches.length === 1)) {
           return { ...s, name: match.matches[0] };
         }
         return s;
       });
-      setSubjects(mapped.map(s => ({ ...s, files: s.files.map(f => ({ ...f })) })));
+      setSubjects(mapped.map((s) => ({ ...s, files: s.files.map((f) => ({ ...f })) })));
       setExpandedSubjects(new Set(mapped.map((_, i) => i)));
       if (!packageNameTouched) {
-        const lastPart = sourcePath.trim().replace(/\/+$/, '').split('/').pop() || 'package';
+        const lastPart = sourcePath.trim().replace(/\/+$/, "").split("/").pop() || "package";
         setPackageName(lastPart);
       }
-      setStep('preview');
+      setStep("preview");
     } catch (err: any) {
-      toast({ title: 'Analysis failed', description: err.message, variant: 'destructive' });
+      toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
     }
   };
 
   const handleEnterDatasets = async () => {
-    setStep('datasets');
+    setStep("datasets");
     setDatasetsLoading(true);
     try {
-      const activeSubjects = subjects
-        .filter(s => s.files.some(f => f.selected))
-        .map(s => ({ name: s.name }));
+      const activeSubjects = subjects.filter((s) => s.files.some((f) => f.selected)).map((s) => ({ name: s.name }));
 
-      const [dirsRes, resolveRes] = await Promise.all([
-        fetchDatasetDirs(),
-        resolveDatasets(activeSubjects),
-      ]);
+      const [dirsRes, resolveRes] = await Promise.all([fetchDatasetDirs(), resolveDatasets(activeSubjects)]);
 
       setDatasetsRoot(dirsRes.datasets_root);
       setAllDatasetDirs(dirsRes.dirs);
@@ -266,29 +287,29 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
           mapState.set(m.subject_name, {
             dir: m.existing_dir,
             isNew: false,
-            status: 'matched',
+            status: "matched",
           });
         } else if (m.suggestions.length > 0 && m.suggestions[0].score >= 0.9) {
           // Confident match (exact or single-prefix)
           mapState.set(m.subject_name, {
             dir: `${dirsRes.datasets_root}/${m.suggestions[0].dir_name}`,
             isNew: false,
-            status: 'matched',
+            status: "matched",
           });
         } else if (m.suggestions.length > 0 && m.suggestions[0].score >= 0.75) {
           // Ambiguous but plausible — needs review
           mapState.set(m.subject_name, {
-            dir: '',
+            dir: "",
             isNew: false,
-            status: 'review',
+            status: "review",
           });
         } else {
           // No match — default to create new
-          const normalized = m.subject_name.trim().toLowerCase().replace(/\s+/g, '_');
+          const normalized = m.subject_name.trim().toLowerCase().replace(/\s+/g, "_");
           mapState.set(m.subject_name, {
             dir: `${dirsRes.datasets_root}/${normalized}`,
             isNew: true,
-            status: 'new',
+            status: "new",
           });
         }
       }
@@ -296,7 +317,7 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
       setDatasetSuggestions(sugMap);
       setDatasetMappings(mapState);
     } catch (err: any) {
-      toast({ title: 'Failed to load dataset dirs', description: err.message, variant: 'destructive' });
+      toast({ title: "Failed to load dataset dirs", description: err.message, variant: "destructive" });
     } finally {
       setDatasetsLoading(false);
     }
@@ -304,15 +325,18 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
 
   const handleIngest = async () => {
     if (!analysis || !effectiveProjectId) return;
-    setStep('ingesting');
+    setStep("ingesting");
     setProgress(null);
     try {
-      const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+      const tags = tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
       // Build dataset mappings if configured
       const dsMappings: DatasetMapping[] = [];
       if (!skipDatasets && datasetMappings.size > 0) {
         for (const [subjName, state] of datasetMappings) {
-          if (state.status !== 'skip' && state.dir) {
+          if (state.status !== "skip" && state.dir) {
             dsMappings.push({
               subject_name: subjName,
               dataset_dir: state.dir,
@@ -327,9 +351,12 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
           project_id: effectiveProjectId,
           source_path: sourcePath.trim(),
           package_type: analysis.package_type,
-          subjects: subjects.map(s => ({
-            name: s.name.trim().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-            files: s.files.map(f => ({
+          subjects: subjects.map((s) => ({
+            name: s.name
+              .trim()
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase()),
+            files: s.files.map((f) => ({
               original_path: f.original_path,
               selected: f.selected,
               subject: f.subject,
@@ -344,46 +371,52 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
           ...(dsMappings.length > 0 ? { dataset_mappings: dsMappings } : {}),
         },
         (event: IngestStreamEvent) => {
-          if ('current' in event) {
-            progressRef.current = { current: event.current, total: event.total, file: event.file, step: event.step, elapsed: event.elapsed };
+          if ("current" in event) {
+            progressRef.current = {
+              current: event.current,
+              total: event.total,
+              file: event.file,
+              step: event.step,
+              elapsed: event.elapsed,
+            };
             if (!rafRef.current) {
               rafRef.current = requestAnimationFrame(() => {
                 if (progressRef.current) setProgress({ ...progressRef.current });
                 rafRef.current = undefined;
               });
             }
-          } else if ('type' in event && event.type === 'finalizing') {
-            setProgress(prev => prev ? { ...prev, step: 'finalizing', file: 'Committing to database...' } : prev);
+          } else if ("type" in event && event.type === "finalizing") {
+            setProgress((prev) => (prev ? { ...prev, step: "finalizing", file: "Committing to database..." } : prev));
           }
         },
       );
       setResult(res);
-      setStep('done');
-      toast({ title: 'Ingest complete', description: `${res.file_count} assets ingested` });
+      setStep("done");
+      toast({ title: "Ingest complete", description: `${res.file_count} assets ingested` });
     } catch (err: any) {
-      toast({ title: 'Ingest failed', description: err.message, variant: 'destructive' });
-      setStep('confirm');
+      toast({ title: "Ingest failed", description: err.message, variant: "destructive" });
+      setStep("confirm");
     }
   };
 
   const toggleFileSelected = (subjectIdx: number, fileIdx: number) => {
-    setSubjects(prev => {
-      const next = prev.map(s => ({ ...s, files: s.files.map(f => ({ ...f })) }));
+    setSubjects((prev) => {
+      const next = prev.map((s) => ({ ...s, files: s.files.map((f) => ({ ...f })) }));
       next[subjectIdx].files[fileIdx].selected = !next[subjectIdx].files[fileIdx].selected;
       return next;
     });
   };
 
   const toggleAllInSubject = (subjectIdx: number, selected: boolean) => {
-    setSubjects(prev => {
-      const next = prev.map(s => ({ ...s, files: s.files.map(f => ({ ...f })) }));
-      next[subjectIdx].files.forEach(f => (f.selected = selected));
+    setSubjects((prev) => {
+      const next = prev.map((s) => ({ ...s, files: s.files.map((f) => ({ ...f })) }));
+      next[subjectIdx].files.forEach((f) => (f.selected = selected));
       return next;
     });
   };
 
   const renameSubject = (subjectIdx: number, name: string) => {
-    setSubjects(prev => {
+    setSubjects((prev) => {
       const next = [...prev];
       next[subjectIdx] = { ...next[subjectIdx], name };
       return next;
@@ -391,33 +424,34 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
   };
 
   const toggleExpanded = (index: number) => {
-    setExpandedSubjects(prev => {
+    setExpandedSubjects((prev) => {
       const next = new Set(prev);
       next.has(index) ? next.delete(index) : next.add(index);
       return next;
     });
   };
 
-  const totalSelected = subjects.reduce((sum, s) => sum + s.files.filter(f => f.selected).length, 0);
-  const totalSelectedSize = subjects.reduce((sum, s) => sum + s.files.filter(f => f.selected).reduce((fs, f) => fs + f.size_bytes, 0), 0);
+  const totalSelected = subjects.reduce((sum, s) => sum + s.files.filter((f) => f.selected).length, 0);
+  const totalSelectedSize = subjects.reduce(
+    (sum, s) => sum + s.files.filter((f) => f.selected).reduce((fs, f) => fs + f.size_bytes, 0),
+    0,
+  );
 
-  const existingSubjectList = (existingSubjects ?? []).map(s => ({
+  const existingSubjectList = (existingSubjects ?? []).map((s) => ({
     original: s.name,
     normalized: normalizeSubjectName(s.name).toLowerCase(),
   }));
 
-  function findSubjectMatch(rawName: string): { type: 'exact' | 'fuzzy' | 'none'; matches: string[] } {
+  function findSubjectMatch(rawName: string): { type: "exact" | "fuzzy" | "none"; matches: string[] } {
     const norm = normalizeSubjectName(rawName).toLowerCase();
-    const exact = existingSubjectList.find(s => s.normalized === norm);
-    if (exact) return { type: 'exact', matches: [exact.original] };
-    const fuzzy = existingSubjectList.filter(s =>
-      s.normalized.includes(norm) || norm.includes(s.normalized)
-    );
-    if (fuzzy.length > 0) return { type: 'fuzzy', matches: fuzzy.map(f => f.original) };
-    return { type: 'none', matches: [] };
+    const exact = existingSubjectList.find((s) => s.normalized === norm);
+    if (exact) return { type: "exact", matches: [exact.original] };
+    const fuzzy = existingSubjectList.filter((s) => s.normalized.includes(norm) || norm.includes(s.normalized));
+    if (fuzzy.length > 0) return { type: "fuzzy", matches: fuzzy.map((f) => f.original) };
+    return { type: "none", matches: [] };
   }
 
-  const selectedProject = projects?.find(p => p.id === effectiveProjectId);
+  const selectedProject = projects?.find((p) => p.id === effectiveProjectId);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -425,41 +459,61 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package size={16} />
-            {forcedPackageType === 'vfx' ? 'Add Dataset' : 'Add Package'}
+            {forcedPackageType === "vfx" ? "Add Dataset" : "Add Package"}
           </DialogTitle>
         </DialogHeader>
 
-        {step === 'input' && (
+        {step === "input" && (
           <>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs">Project</Label>
                 {projectIdProp ? (
-                  <p className="text-sm mt-1 text-foreground/80">{selectedProject?.name ?? 'Loading...'}</p>
+                  <p className="text-sm mt-1 text-foreground/80">{selectedProject?.name ?? "Loading..."}</p>
                 ) : creatingProject ? (
                   <div className="mt-1 space-y-2 rounded-md border border-border/40 p-2.5">
                     <div className="grid grid-cols-2 gap-2">
                       <Input
                         value={newProjectName}
-                        onChange={e => setNewProjectName(e.target.value)}
+                        onChange={(e) => setNewProjectName(e.target.value)}
                         placeholder="Project name"
                         className="text-xs"
                         autoFocus
                       />
-                      <RadioGroup value={newProjectType} onValueChange={(v) => setNewProjectType(v as 'atman' | 'vfx')} className="flex gap-3 items-center">
+                      <RadioGroup
+                        value={newProjectType}
+                        onValueChange={(v) => setNewProjectType(v as "atman" | "vfx")}
+                        className="flex gap-3 items-center"
+                      >
                         <div className="flex items-center gap-1">
                           <RadioGroupItem value="atman" id="new-atman" />
-                          <Label htmlFor="new-atman" className="text-xs">ATMAN</Label>
+                          <Label htmlFor="new-atman" className="text-xs">
+                            ATMAN
+                          </Label>
                         </div>
                         <div className="flex items-center gap-1">
                           <RadioGroupItem value="vfx" id="new-vfx" />
-                          <Label htmlFor="new-vfx" className="text-xs">VFX</Label>
+                          <Label htmlFor="new-vfx" className="text-xs">
+                            VFX
+                          </Label>
                         </div>
                       </RadioGroup>
                     </div>
                     <div className="flex gap-1.5">
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCreatingProject(false)}>Cancel</Button>
-                      <Button size="sm" className="h-7 text-xs" onClick={handleCreateProject} disabled={!newProjectName.trim() || createProject.isPending}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => setCreatingProject(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={handleCreateProject}
+                        disabled={!newProjectName.trim() || createProject.isPending}
+                      >
                         {createProject.isPending && <Loader2 size={12} className="animate-spin mr-1" />}
                         Create
                       </Button>
@@ -471,16 +525,19 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                       <SelectValue placeholder="Select a project..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {projects?.map(p => (
+                      {projects?.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           <span className="flex items-center gap-2">
                             {p.name}
-                            <Badge variant="outline" className={`text-2xs px-1.5 py-0 ${
-                              p.project_type === 'atman'
-                                ? 'text-info border-info/20'
-                                : 'text-warning border-warning/20'
-                            }`}>
-                              {p.project_type === 'atman' ? 'ATMAN' : 'VFX'}
+                            <Badge
+                              variant="outline"
+                              className={`text-2xs px-1.5 py-0 ${
+                                p.project_type === "atman"
+                                  ? "text-info border-info/20"
+                                  : "text-warning border-warning/20"
+                              }`}
+                            >
+                              {p.project_type === "atman" ? "ATMAN" : "VFX"}
                             </Badge>
                           </span>
                         </SelectItem>
@@ -495,17 +552,20 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                 <Label className="text-xs">Source Path</Label>
                 <Input
                   value={sourcePath}
-                  onChange={e => setSourcePath(e.target.value)}
+                  onChange={(e) => setSourcePath(e.target.value)}
                   placeholder="/mnt/x/PROJECTS/..."
                   className="mt-1 font-mono text-xs"
-                  onKeyDown={e => e.key === 'Enter' && handleAnalyze()}
+                  onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
                 />
               </div>
               <div>
                 <Label className="text-xs">Package Name</Label>
                 <Input
                   value={packageName}
-                  onChange={e => { setPackageName(e.target.value); setPackageNameTouched(true); }}
+                  onChange={(e) => {
+                    setPackageName(e.target.value);
+                    setPackageNameTouched(true);
+                  }}
                   placeholder="Auto-filled from path"
                   className="mt-1"
                 />
@@ -514,7 +574,7 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                 <Label className="text-xs">Description</Label>
                 <Textarea
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  onChange={(e) => setDescription(e.target.value)}
                   placeholder="Optional description"
                   className="mt-1"
                   rows={2}
@@ -524,14 +584,16 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                 <Label className="text-xs">Tags</Label>
                 <Input
                   value={tagsInput}
-                  onChange={e => setTagsInput(e.target.value)}
+                  onChange={(e) => setTagsInput(e.target.value)}
                   placeholder="tag1, tag2"
                   className="mt-1"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => handleClose(false)}>
+                Cancel
+              </Button>
               <Button onClick={handleAnalyze} disabled={!sourcePath.trim() || !effectiveProjectId || analyze.isPending}>
                 {analyze.isPending && <Loader2 size={14} className="animate-spin mr-1" />}
                 Analyze
@@ -540,23 +602,26 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
           </>
         )}
 
-        {step === 'preview' && analysis && (
+        {step === "preview" && analysis && (
           <>
             <div className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className={analysis.package_type === 'vfx'
-                  ? 'text-warning border-warning/20 bg-warning/8'
-                  : 'text-info border-info/20 bg-info/8'
-                }>
-                  {analysis.package_type === 'vfx' ? 'VFX (auto-detected)' : 'ATMAN'}
+                <Badge
+                  variant="outline"
+                  className={
+                    analysis.package_type === "vfx"
+                      ? "text-warning border-warning/20 bg-warning/8"
+                      : "text-info border-info/20 bg-info/8"
+                  }
+                >
+                  {analysis.package_type === "vfx" ? "VFX (auto-detected)" : "ATMAN"}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {pluralize(analysis.total_files, 'file')} ({formatBytes(analysis.total_size_bytes)}) across {pluralize(analysis.subjects.length, 'subject')}
+                  {pluralize(analysis.total_files, "file")} ({formatBytes(analysis.total_size_bytes)}) across{" "}
+                  {pluralize(analysis.subjects.length, "subject")}
                 </span>
                 {selectedProject && (
-                  <span className="text-xs text-muted-foreground/60 ml-auto">
-                    Project: {selectedProject.name}
-                  </span>
+                  <span className="text-xs text-muted-foreground/60 ml-auto">Project: {selectedProject.name}</span>
                 )}
               </div>
 
@@ -564,7 +629,7 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
 
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {subjects.map((subj, si) => {
-                  const selectedCount = subj.files.filter(f => f.selected).length;
+                  const selectedCount = subj.files.filter((f) => f.selected).length;
                   const allSelected = selectedCount === subj.files.length;
                   const isExpanded = expandedSubjects.has(si);
                   const match = findSubjectMatch(subj.name);
@@ -578,18 +643,32 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         <Input
                           value={subj.name}
-                          onChange={e => { e.stopPropagation(); renameSubject(si, e.target.value); }}
-                          onClick={e => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            renameSubject(si, e.target.value);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
                           className="h-6 text-xs font-medium w-40 px-1"
                         />
-                        {match.type === 'exact' ? (
-                          <Badge variant="outline" className="text-success border-success/20 bg-success/8 text-2xs px-1.5 py-0">Existing</Badge>
-                        ) : match.type === 'fuzzy' ? (
-                          <Badge variant="outline" className="text-warning border-warning/20 bg-warning/8 text-2xs px-1.5 py-0">
-                            Match: {match.matches[0]}{match.matches.length > 1 ? ` +${match.matches.length - 1}` : ''}
+                        {match.type === "exact" ? (
+                          <Badge
+                            variant="outline"
+                            className="text-success border-success/20 bg-success/8 text-2xs px-1.5 py-0"
+                          >
+                            Existing
+                          </Badge>
+                        ) : match.type === "fuzzy" ? (
+                          <Badge
+                            variant="outline"
+                            className="text-warning border-warning/20 bg-warning/8 text-2xs px-1.5 py-0"
+                          >
+                            Match: {match.matches[0]}
+                            {match.matches.length > 1 ? ` +${match.matches.length - 1}` : ""}
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-info border-info/20 bg-info/8 text-2xs px-1.5 py-0">New</Badge>
+                          <Badge variant="outline" className="text-info border-info/20 bg-info/8 text-2xs px-1.5 py-0">
+                            New
+                          </Badge>
                         )}
                         <span className="text-xs text-muted-foreground ml-auto">
                           {selectedCount}/{subj.files.length} selected ({formatBytes(subj.total_size_bytes)})
@@ -598,9 +677,12 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                           variant="ghost"
                           size="sm"
                           className="h-5 px-1.5 text-2xs"
-                          onClick={e => { e.stopPropagation(); toggleAllInSubject(si, !allSelected); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleAllInSubject(si, !allSelected);
+                          }}
                         >
-                          {allSelected ? 'Deselect all' : 'Select all'}
+                          {allSelected ? "Deselect all" : "Select all"}
                         </Button>
                       </div>
 
@@ -620,7 +702,11 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
 
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs">
-                  <Checkbox checked={skipProxies} onCheckedChange={(c) => setSkipProxies(c === true)} className="h-3 w-3" />
+                  <Checkbox
+                    checked={skipProxies}
+                    onCheckedChange={(c) => setSkipProxies(c === true)}
+                    className="h-3 w-3"
+                  />
                   Skip proxy generation
                 </label>
                 <p className="text-xs text-muted-foreground/60">
@@ -630,7 +716,9 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setStep('input')}>Back</Button>
+              <Button variant="outline" onClick={() => setStep("input")}>
+                Back
+              </Button>
               <Button onClick={handleEnterDatasets} disabled={totalSelected === 0}>
                 Review & Ingest
               </Button>
@@ -638,7 +726,7 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
           </>
         )}
 
-        {step === 'datasets' && (
+        {step === "datasets" && (
           <>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -658,7 +746,8 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
 
               {!skipDatasets && (
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Map each subject to a dataset directory. Symlinks will be created from the dataset directory to the ingested files.
+                  Map each subject to a dataset directory. Symlinks will be created from the dataset directory to the
+                  ingested files.
                 </p>
               )}
 
@@ -667,129 +756,169 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                   <Loader2 size={16} className="animate-spin text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Loading dataset directories...</span>
                 </div>
-              ) : !skipDatasets && (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {subjects.filter(s => s.files.some(f => f.selected)).map((subj) => {
-                    const mapping = datasetMappings.get(subj.name);
-                    const suggestions = (datasetSuggestions.get(subj.name) || []).filter(s => s.score >= 0.75);
-                    const status = mapping?.status || 'review';
-                    const fileCount = subj.files.filter(f => f.selected).length;
-                    const showBrowse = browseDirs.has(subj.name);
+              ) : (
+                !skipDatasets && (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {subjects
+                      .filter((s) => s.files.some((f) => f.selected))
+                      .map((subj) => {
+                        const mapping = datasetMappings.get(subj.name);
+                        const suggestions = (datasetSuggestions.get(subj.name) || []).filter((s) => s.score >= 0.75);
+                        const status = mapping?.status || "review";
+                        const fileCount = subj.files.filter((f) => f.selected).length;
+                        const showBrowse = browseDirs.has(subj.name);
 
-                    return (
-                      <div key={subj.name} className="rounded-lg border border-border/30 bg-card/60 p-4 space-y-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{normalizeSubjectName(subj.name)}</span>
-                          {status === 'matched' && (
-                            <Badge variant="outline" className="text-success border-success/20 bg-success/8 text-2xs px-1.5 py-0">Matched</Badge>
-                          )}
-                          {status === 'review' && (
-                            <Badge variant="outline" className="text-warning border-warning/20 bg-warning/8 text-2xs px-1.5 py-0">Review</Badge>
-                          )}
-                          {status === 'new' && (
-                            <Badge variant="outline" className="text-info border-info/20 bg-info/8 text-2xs px-1.5 py-0">New</Badge>
-                          )}
-                          {status === 'skip' && (
-                            <Badge variant="outline" className="text-muted-foreground border-border/40 text-2xs px-1.5 py-0">Skipped</Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground ml-auto">{pluralize(fileCount, 'file')}</span>
-                        </div>
-
-                        <Select
-                          value={status === 'skip' ? '__skip__' : status === 'new' ? '__create_new__' : mapping?.dir || '__unset__'}
-                          onValueChange={(val) => {
-                            if (val === '__browse__') {
-                              setBrowseDirs(prev => { const next = new Set(prev); next.add(subj.name); return next; });
-                              return;
-                            }
-                            setDatasetMappings(prev => {
-                              const next = new Map(prev);
-                              if (val === '__skip__') {
-                                next.set(subj.name, { dir: '', isNew: false, status: 'skip' });
-                              } else if (val === '__create_new__') {
-                                const normalized = subj.name.trim().toLowerCase().replace(/\s+/g, '_');
-                                next.set(subj.name, {
-                                  dir: `${datasetsRoot}/${normalized}`,
-                                  isNew: true,
-                                  status: 'new',
-                                });
-                              } else {
-                                next.set(subj.name, { dir: val, isNew: false, status: 'matched' });
-                              }
-                              return next;
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select dataset directory..." />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-72">
-                            {suggestions.length > 0 && (
-                              <SelectGroup>
-                                <SelectLabel className="text-2xs text-muted-foreground/70">Suggestions</SelectLabel>
-                                {suggestions.slice(0, 3).map(s => (
-                                  <SelectItem
-                                    key={`sug-${s.dir_name}`}
-                                    value={`${datasetsRoot}/${s.dir_name}`}
-                                    className="text-xs"
-                                  >
-                                    <span className="flex items-center gap-2">
-                                      {s.dir_name}
-                                      <span className="text-2xs text-muted-foreground">
-                                        {s.match_type} {Math.round(s.score * 100)}%
-                                      </span>
-                                    </span>
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            )}
-                            {showBrowse && (
-                              <SelectGroup>
-                                <SelectLabel className="text-2xs text-muted-foreground/70">All directories</SelectLabel>
-                                {allDatasetDirs.map(d => (
-                                  <SelectItem
-                                    key={d}
-                                    value={`${datasetsRoot}/${d}`}
-                                    className="text-xs"
-                                  >
-                                    {d}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            )}
-                            <SelectGroup>
-                              {!showBrowse && (
-                                <SelectItem value="__browse__" className="text-xs text-muted-foreground italic">
-                                  Browse all directories...
-                                </SelectItem>
+                        return (
+                          <div
+                            key={subj.name}
+                            className="rounded-lg border border-border/30 bg-card/60 p-4 space-y-2.5"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{normalizeSubjectName(subj.name)}</span>
+                              {status === "matched" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-success border-success/20 bg-success/8 text-2xs px-1.5 py-0"
+                                >
+                                  Matched
+                                </Badge>
                               )}
-                              <SelectItem value="__create_new__" className="text-xs text-info">
-                                + Create new directory
-                              </SelectItem>
-                              <SelectItem value="__skip__" className="text-xs text-muted-foreground">
-                                Skip (no dataset link)
-                              </SelectItem>
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                              {status === "review" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-warning border-warning/20 bg-warning/8 text-2xs px-1.5 py-0"
+                                >
+                                  Review
+                                </Badge>
+                              )}
+                              {status === "new" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-info border-info/20 bg-info/8 text-2xs px-1.5 py-0"
+                                >
+                                  New
+                                </Badge>
+                              )}
+                              {status === "skip" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-muted-foreground border-border/40 text-2xs px-1.5 py-0"
+                                >
+                                  Skipped
+                                </Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground ml-auto">
+                                {pluralize(fileCount, "file")}
+                              </span>
+                            </div>
 
-                        {mapping?.dir && status !== 'skip' && (
-                          <p className="text-2xs text-muted-foreground/60 font-mono truncate mt-1">
-                            {mapping.isNew ? 'Will create: ' : ''}{mapping.dir}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                            <Select
+                              value={
+                                status === "skip"
+                                  ? "__skip__"
+                                  : status === "new"
+                                    ? "__create_new__"
+                                    : mapping?.dir || "__unset__"
+                              }
+                              onValueChange={(val) => {
+                                if (val === "__browse__") {
+                                  setBrowseDirs((prev) => {
+                                    const next = new Set(prev);
+                                    next.add(subj.name);
+                                    return next;
+                                  });
+                                  return;
+                                }
+                                setDatasetMappings((prev) => {
+                                  const next = new Map(prev);
+                                  if (val === "__skip__") {
+                                    next.set(subj.name, { dir: "", isNew: false, status: "skip" });
+                                  } else if (val === "__create_new__") {
+                                    const normalized = subj.name.trim().toLowerCase().replace(/\s+/g, "_");
+                                    next.set(subj.name, {
+                                      dir: `${datasetsRoot}/${normalized}`,
+                                      isNew: true,
+                                      status: "new",
+                                    });
+                                  } else {
+                                    next.set(subj.name, { dir: val, isNew: false, status: "matched" });
+                                  }
+                                  return next;
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Select dataset directory..." />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-72">
+                                {suggestions.length > 0 && (
+                                  <SelectGroup>
+                                    <SelectLabel className="text-2xs text-muted-foreground/70">Suggestions</SelectLabel>
+                                    {suggestions.slice(0, 3).map((s) => (
+                                      <SelectItem
+                                        key={`sug-${s.dir_name}`}
+                                        value={`${datasetsRoot}/${s.dir_name}`}
+                                        className="text-xs"
+                                      >
+                                        <span className="flex items-center gap-2">
+                                          {s.dir_name}
+                                          <span className="text-2xs text-muted-foreground">
+                                            {s.match_type} {Math.round(s.score * 100)}%
+                                          </span>
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                )}
+                                {showBrowse && (
+                                  <SelectGroup>
+                                    <SelectLabel className="text-2xs text-muted-foreground/70">
+                                      All directories
+                                    </SelectLabel>
+                                    {allDatasetDirs.map((d) => (
+                                      <SelectItem key={d} value={`${datasetsRoot}/${d}`} className="text-xs">
+                                        {d}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                )}
+                                <SelectGroup>
+                                  {!showBrowse && (
+                                    <SelectItem value="__browse__" className="text-xs text-muted-foreground italic">
+                                      Browse all directories...
+                                    </SelectItem>
+                                  )}
+                                  <SelectItem value="__create_new__" className="text-xs text-info">
+                                    + Create new directory
+                                  </SelectItem>
+                                  <SelectItem value="__skip__" className="text-xs text-muted-foreground">
+                                    Skip (no dataset link)
+                                  </SelectItem>
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+
+                            {mapping?.dir && status !== "skip" && (
+                              <p className="text-2xs text-muted-foreground/60 font-mono truncate mt-1">
+                                {mapping.isNew ? "Will create: " : ""}
+                                {mapping.dir}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )
               )}
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setStep('preview')}>Back</Button>
+              <Button variant="outline" onClick={() => setStep("preview")}>
+                Back
+              </Button>
               <Button
-                onClick={() => setStep('confirm')}
-                disabled={!skipDatasets && Array.from(datasetMappings.values()).some(m => m.status === 'review')}
+                onClick={() => setStep("confirm")}
+                disabled={!skipDatasets && Array.from(datasetMappings.values()).some((m) => m.status === "review")}
               >
                 Continue
               </Button>
@@ -797,7 +926,7 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
           </>
         )}
 
-        {step === 'confirm' && (
+        {step === "confirm" && (
           <>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">Please review the following before ingesting:</p>
@@ -808,26 +937,34 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Package</span>
-                  <span className="font-mono-path">{packageName || '(auto)'}</span>
+                  <span className="font-mono-path">{packageName || "(auto)"}</span>
                 </div>
                 <Separator />
                 <div className="space-y-1.5">
                   <span className="text-muted-foreground text-xs">Subjects</span>
-                  {subjects.filter(s => s.files.some(f => f.selected)).map((s, i) => {
-                    const match = findSubjectMatch(s.name);
-                    const count = s.files.filter(f => f.selected).length;
-                    return (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        <span className="font-medium">{normalizeSubjectName(s.name)}</span>
-                        {match.type === 'exact' ? (
-                          <Badge variant="outline" className="text-success border-success/20 text-2xs px-1.5 py-0">Existing</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-info border-info/20 text-2xs px-1.5 py-0">New</Badge>
-                        )}
-                        <span className="text-muted-foreground ml-auto">{count} {count === 1 ? 'file' : 'files'}</span>
-                      </div>
-                    );
-                  })}
+                  {subjects
+                    .filter((s) => s.files.some((f) => f.selected))
+                    .map((s, i) => {
+                      const match = findSubjectMatch(s.name);
+                      const count = s.files.filter((f) => f.selected).length;
+                      return (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <span className="font-medium">{normalizeSubjectName(s.name)}</span>
+                          {match.type === "exact" ? (
+                            <Badge variant="outline" className="text-success border-success/20 text-2xs px-1.5 py-0">
+                              Existing
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-info border-info/20 text-2xs px-1.5 py-0">
+                              New
+                            </Badge>
+                          )}
+                          <span className="text-muted-foreground ml-auto">
+                            {count} {count === 1 ? "file" : "files"}
+                          </span>
+                        </div>
+                      );
+                    })}
                 </div>
                 <Separator />
                 <div className="flex justify-between">
@@ -840,20 +977,22 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Proxy generation</span>
-                  <span>{skipProxies ? 'Skipped' : 'Enabled'}</span>
+                  <span>{skipProxies ? "Skipped" : "Enabled"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Dataset linking</span>
                   <span>
                     {skipDatasets
-                      ? 'Skipped'
-                      : `${Array.from(datasetMappings.values()).filter(m => m.status !== 'skip' && m.dir).length} subjects`}
+                      ? "Skipped"
+                      : `${Array.from(datasetMappings.values()).filter((m) => m.status !== "skip" && m.dir).length} subjects`}
                   </span>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setStep('datasets')}>Back</Button>
+              <Button variant="outline" onClick={() => setStep("datasets")}>
+                Back
+              </Button>
               <Button onClick={handleIngest} disabled={!effectiveProjectId}>
                 Confirm & Ingest
               </Button>
@@ -861,14 +1000,16 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
           </>
         )}
 
-        {step === 'ingesting' && (
+        {step === "ingesting" && (
           <div className="flex flex-col items-center justify-center py-8 gap-4 min-w-[320px]">
             {progress ? (
               <>
                 <div className="w-full space-y-2">
                   <Progress value={(progress.current / progress.total) * 100} className="h-2" />
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{progress.current} / {progress.total} files</span>
+                    <span>
+                      {progress.current} / {progress.total} files
+                    </span>
                     <span>{progress.elapsed}s elapsed</span>
                   </div>
                 </div>
@@ -890,7 +1031,7 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subjects</span>
-                    <span>{subjects.filter(s => s.files.some(f => f.selected)).length}</span>
+                    <span>{subjects.filter((s) => s.files.some((f) => f.selected)).length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Files</span>
@@ -901,15 +1042,13 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
                     <span>{formatBytes(totalSelectedSize)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground/60 text-center">
-                  Creating subjects and packages...
-                </p>
+                <p className="text-xs text-muted-foreground/60 text-center">Creating subjects and packages...</p>
               </div>
             )}
           </div>
         )}
 
-        {step === 'done' && result && (
+        {step === "done" && result && (
           <>
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
@@ -917,9 +1056,12 @@ export function AddPackageDialog({ open, onOpenChange, projectId: projectIdProp,
               </div>
               <p className="text-sm font-medium">Ingest Complete</p>
               <div className="text-xs text-muted-foreground text-center space-y-0.5">
-                <p>{pluralize(result.file_count, 'asset')} ingested</p>
+                <p>{pluralize(result.file_count, "asset")} ingested</p>
                 {result.subjects_created.length > 0 && (
-                  <p>{pluralize(result.subjects_created.length, 'new subject')} created: {result.subjects_created.join(', ')}</p>
+                  <p>
+                    {pluralize(result.subjects_created.length, "new subject")} created:{" "}
+                    {result.subjects_created.join(", ")}
+                  </p>
                 )}
               </div>
             </div>

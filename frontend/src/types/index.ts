@@ -1,5 +1,3 @@
-
-
 // -- Typed Metadata -----------------------------------------------------------
 
 export interface FaceMetadata {
@@ -42,7 +40,7 @@ export interface Project {
   id: string;
   name: string;
   description: string | null;
-  project_type: 'atman' | 'vfx';
+  project_type: "atman" | "vfx";
   client: string | null;
   notes: string | null;
   tags: string[];
@@ -83,8 +81,8 @@ export interface Package {
   ingested_at: string;
   file_count: number;
   total_size_bytes: number;
-  status: 'ingested' | 'processing' | 'ready' | 'error';
-  package_type: 'atman' | 'vfx';
+  status: "ingested" | "processing" | "ready" | "error";
+  package_type: "atman" | "vfx";
   picked_up: boolean;
   disk_path: string | null;
   tags: string[];
@@ -97,7 +95,7 @@ export interface Asset {
   package_id: string;
   subject_id: string | null;
   filename: string;
-  file_type: 'video' | 'image' | 'audio' | 'other';
+  file_type: "video" | "image" | "audio" | "other";
   asset_type: string;
   mime_type: string | null;
   file_size_bytes: number | null;
@@ -122,7 +120,7 @@ export interface Asset {
 export interface CreateProjectInput {
   name: string;
   description?: string;
-  project_type: 'atman' | 'vfx';
+  project_type: "atman" | "vfx";
   client?: string;
   notes?: string;
   tags?: string[];
@@ -131,7 +129,7 @@ export interface CreateProjectInput {
 export interface UpdateProjectInput {
   name?: string;
   description?: string;
-  project_type?: 'atman' | 'vfx';
+  project_type?: "atman" | "vfx";
 }
 
 export interface CreateSubjectInput {
@@ -172,7 +170,7 @@ export interface RecentPackage {
   file_count: number;
   total_size_bytes: number;
   status: string;
-  package_type: 'atman' | 'vfx';
+  package_type: "atman" | "vfx";
   picked_up: boolean;
   disk_path: string | null;
   tags: string[];
@@ -266,7 +264,7 @@ export interface AssetFilters {
 
 export interface FileAnalysis {
   original_path: string;
-  file_type: 'video' | 'image' | 'audio';
+  file_type: "video" | "image" | "audio";
   size_bytes: number;
   subject: string;
   camera: string;
@@ -283,7 +281,7 @@ export interface SubjectAnalysis {
 
 export interface AnalysisResult {
   source_path: string;
-  package_type: 'atman' | 'vfx';
+  package_type: "atman" | "vfx";
   total_files: number;
   total_size_bytes: number;
   subjects: SubjectAnalysis[];
@@ -298,7 +296,7 @@ export interface DatasetMapping {
 export interface DatasetSuggestion {
   dir_name: string;
   score: number;
-  match_type: 'exact' | 'prefix' | 'substring' | 'fuzzy';
+  match_type: "exact" | "prefix" | "substring" | "fuzzy";
 }
 
 export interface DatasetResolution {
@@ -311,7 +309,10 @@ export interface IngestExecuteRequest {
   project_id: string;
   source_path: string;
   package_type: string;
-  subjects: { name: string; files: { original_path: string; selected: boolean; subject: string; asset_type: string }[] }[];
+  subjects: {
+    name: string;
+    files: { original_path: string; selected: boolean; subject: string; asset_type: string }[];
+  }[];
   package_name: string;
   description: string;
   tags: string[];

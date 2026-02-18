@@ -1,12 +1,5 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  formatBytes,
-  formatDuration,
-  formatResolution,
-  relativeTime,
-  pluralize,
-  isNew,
-} from "../formatters";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatBytes, formatDuration, formatResolution, isNew, pluralize, relativeTime } from "../formatters";
 
 describe("formatBytes", () => {
   it("returns '0 B' for 0", () => {

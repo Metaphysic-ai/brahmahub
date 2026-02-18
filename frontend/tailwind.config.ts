@@ -72,7 +72,7 @@ export default {
         info: "hsl(var(--info))",
       },
       fontSize: {
-        '2xs': ['0.625rem', { lineHeight: '0.875rem' }],
+        "2xs": ["0.625rem", { lineHeight: "0.875rem" }],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -100,7 +100,7 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
-        "shimmer": {
+        shimmer: {
           "0%": { opacity: "0.5" },
           "50%": { opacity: "0.8" },
           "100%": { opacity: "0.5" },
@@ -112,7 +112,7 @@ export default {
         "slide-in-right": "slide-in-right 0.2s ease-out",
         "slide-out-right": "slide-out-right 0.15s ease-in",
         "fade-in-up": "fade-in-up 0.25s ease-out",
-        "shimmer": "shimmer 2s ease-in-out infinite",
+        shimmer: "shimmer 2s ease-in-out infinite",
       },
     },
   },

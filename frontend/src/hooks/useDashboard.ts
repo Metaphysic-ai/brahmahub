@@ -1,11 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/services/api';
-import type { DashboardStats, RecentIngest, StorageByProject } from '@/types';
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/services/api";
+import type { DashboardStats, RecentIngest, StorageByProject } from "@/types";
 
 function useDashboardData() {
   return useQuery<DashboardStats>({
-    queryKey: ['dashboard', 'stats'],
-    queryFn: () => api.get<DashboardStats>('/stats/dashboard'),
+    queryKey: ["dashboard", "stats"],
+    queryFn: () => api.get<DashboardStats>("/stats/dashboard"),
   });
 }
 
@@ -15,10 +15,10 @@ export function useDashboardStats() {
 
 export function useRecentIngests() {
   const { data: stats, ...rest } = useDashboardData();
-  const ingests: RecentIngest[] | undefined = stats?.recent_packages.map(pkg => ({
+  const ingests: RecentIngest[] | undefined = stats?.recent_packages.map((pkg) => ({
     package: pkg,
     subjectName: pkg.subject_names,
-    subjectId: pkg.subject_ids.split(',')[0],
+    subjectId: pkg.subject_ids.split(",")[0],
     projectName: pkg.project_name,
     projectId: pkg.project_id,
   }));

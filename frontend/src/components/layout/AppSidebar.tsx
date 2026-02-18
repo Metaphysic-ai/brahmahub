@@ -1,9 +1,19 @@
-import { LayoutDashboard, FolderOpen, Users, Package, Database, PanelLeftClose, PanelLeft, Search, Plus } from 'lucide-react';
-import { NavLink } from '@/components/NavLink';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AddPackageDialog } from '@/components/AddPackageDialog';
-import { useState } from 'react';
+import {
+  Database,
+  FolderOpen,
+  LayoutDashboard,
+  Package,
+  PanelLeft,
+  PanelLeftClose,
+  Plus,
+  Search,
+  Users,
+} from "lucide-react";
+import { useState } from "react";
+import { AddPackageDialog } from "@/components/AddPackageDialog";
+import { NavLink } from "@/components/NavLink";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -13,7 +23,7 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   return (
     <aside
       className={`flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 ${
-        collapsed ? 'w-14' : 'w-52'
+        collapsed ? "w-14" : "w-52"
       }`}
     >
       <div className="flex items-center gap-2 px-3 h-12 border-b border-sidebar-border">
@@ -34,7 +44,12 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
 
       <div className="px-2 pt-3 pb-1">
         {collapsed ? (
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground hover:text-sidebar-primary-foreground" onClick={onOpenSearch}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-sidebar-foreground hover:text-sidebar-primary-foreground"
+            onClick={onOpenSearch}
+          >
             <Search size={16} />
           </Button>
         ) : (
@@ -104,7 +119,7 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
             <button
               onClick={() => setIngestOpen(true)}
               className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-all duration-200 ${
-                collapsed ? 'justify-center' : ''
+                collapsed ? "justify-center" : ""
               }`}
             >
               <Plus size={16} />
@@ -118,7 +133,7 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
             <button
               onClick={() => setDatasetOpen(true)}
               className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-all duration-200 ${
-                collapsed ? 'justify-center' : ''
+                collapsed ? "justify-center" : ""
               }`}
             >
               <Database size={16} />

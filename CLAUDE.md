@@ -14,27 +14,39 @@ Media asset ingestion and management platform for VFX/ATMAN projects. Scans raw 
 - **Database**: PostgreSQL 16 (Docker) — migrations in `db/migrations/`
 - **CLI**: Click-based `ihub` tool — `cli/ingesthub_cli/`
 - **External**: Google Gemini API (ATMAN package analysis via google-genai, gemini-2.0-flash)
-- **Python**: Always use `.venv` — never install globally. `make api-pip` to install deps.
-- **Node.js**: Use npm. `make frontend-install` to install deps.
+- **Task runner**: mise — `mise.toml` (replaces Makefile)
+- **Python**: uv for packaging, ruff for lint/format, ty for type checking — `pyproject.toml`
+- **Node.js**: pnpm for packages, biome for lint/format — `frontend/biome.json`
+- **Git hooks**: lefthook — `lefthook.yml` (pre-commit, pre-push, commit-msg)
 
 ## Development
 
 ```bash
 cp .env.example .env          # First time setup
-make dev                      # Start everything (DB + migrate + API :8000 + Frontend :8080)
-make stop                     # Stop everything
-make status                   # Check what's running
+mise run setup                # Bootstrap everything (install tools, deps, hooks)
+mise run dev                  # Start everything (DB + migrate + API :8000 + Frontend :8080)
+mise run stop                 # Stop everything
+mise run status               # Check what's running
 ```
 
-Key make targets: `db`, `db-shell`, `migrate`, `api`, `frontend`, `test`, `test-api`, `test-fe`, `lint`, `typecheck`
+Key mise tasks: `db`, `db:stop`, `db:logs`, `db:shell`, `migrate`, `api`, `frontend`, `test`, `test:api`, `test:fe`, `lint`, `typecheck`, `fix`, `format`
 
 Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, `GOOGLE_API_KEY`
 
 ## Testing
 
-- API: `make test-api` — pytest + pytest-asyncio + httpx
-- Frontend: `make test-fe` — vitest + jsdom
-- Both: `make test`
+- API: `mise run test:api` — pytest + pytest-asyncio + httpx
+- Frontend: `mise run test:fe` — vitest + jsdom
+- Both: `mise run test`
+
+## Code Quality
+
+- **Lint**: `mise run lint` (ruff + biome)
+- **Format**: `mise run format` (ruff + biome)
+- **Fix all**: `mise run fix` (auto-fix lint + format)
+- **Type check**: `mise run typecheck` (ty + tsc)
+- Pre-commit hooks auto-format staged files via lefthook
+- Pre-push hooks run full lint + typecheck + tests
 
 ## Communication
 
@@ -122,6 +134,8 @@ tests/                        # pytest API tests (pytest-asyncio + httpx)
 - **`packages.subject_id`**: direct FK for primary subject, plus M:M via `packages_subjects` for multi-subject packages
 - **Startup crash recovery**: API lifespan auto-marks packages stuck in `'processing'` as `'error'` on restart — re-ingest required
 - **Migrations are squashed**: `001_initial_schema.sql` contains the full schema (squashed from 001–015)
+- **uv, not pip**: Python deps managed via `uv sync` — never use pip directly
+- **pnpm, not npm**: Frontend deps managed via `pnpm install` — never use npm directly
 
 ## Architecture Diagram Maintenance
 

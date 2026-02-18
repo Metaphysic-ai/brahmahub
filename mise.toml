@@ -1,0 +1,235 @@
+min_version = "2026.2.0"
+
+[env]
+_.file = ".env"
+
+[tools]
+python = "3.12"
+node = "24"
+pnpm = "10"
+lefthook = "latest"
+"aqua:astral-sh/ruff" = "latest"
+"aqua:astral-sh/ty" = "latest"
+
+[hooks]
+enter = "lefthook install"
+
+# ── Setup ──────────────────────────────────────────────────────
+
+[tasks.setup]
+description = "First-time project bootstrap"
+run = """
+#!/usr/bin/env bash
+set -e
+mise install
+lefthook install
+
+# Create .env from example if it doesn't exist
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "Created .env from .env.example — edit MEDIA_ROOT_PATHS and GOOGLE_API_KEY."
+fi
+
+# Create database and role if they don't exist (override: PGPASSWORD=yourpass mise run setup)
+if command -v createdb >/dev/null 2>&1; then
+  export PGPASSWORD="${PGPASSWORD:-postgres}"
+  psql -h localhost -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = 'ingesthub'" \
+    | grep -q 1 || psql -h localhost -U postgres -c "CREATE ROLE ingesthub WITH LOGIN PASSWORD 'ingesthub_dev_2024';"
+  psql -h localhost -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'ingesthub'" \
+    | grep -q 1 || createdb -h localhost -U postgres -O ingesthub ingesthub
+  unset PGPASSWORD
+  echo "Database ready."
+fi
+
+uv sync
+cd frontend && pnpm install
+"""
+
+# ── Database ───────────────────────────────────────────────────
+
+[tasks.db]
+description = "Start PostgreSQL (Docker)"
+run = """
+#!/usr/bin/env bash
+set -e
+if ! docker compose ps postgres --format '{{.Status}}' 2>/dev/null | grep -q 'Up'; then
+  echo "Starting PostgreSQL..."
+  docker compose up -d postgres
+  echo "Waiting for healthy..."
+  for i in $(seq 1 10); do
+    docker compose exec postgres pg_isready -U ingesthub -d ingesthub >/dev/null 2>&1 && break
+    sleep 1
+  done
+  echo "PostgreSQL is ready on :5432"
+fi
+"""
+
+[tasks."db:stop"]
+description = "Stop PostgreSQL"
+run = "docker compose stop postgres"
+
+[tasks."db:logs"]
+description = "Tail PostgreSQL logs"
+run = "docker compose logs -f postgres"
+
+[tasks."db:shell"]
+description = "Open psql shell"
+depends = ["db"]
+run = "docker compose exec postgres psql -U ingesthub -d ingesthub"
+
+[tasks.migrate]
+description = "Run SQL migrations"
+depends = ["db"]
+run = """
+#!/usr/bin/env bash
+set -e
+docker compose exec -T postgres psql -q -U ingesthub -d ingesthub -c \
+  "CREATE TABLE IF NOT EXISTS _migrations (filename TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT now());"
+for f in db/migrations/*.sql; do
+  fn=$(basename "$f")
+  already=$(docker compose exec -T postgres psql -qtAX -U ingesthub -d ingesthub -c \
+    "SELECT 1 FROM _migrations WHERE filename = '$fn'")
+  if [ -z "$already" ]; then
+    echo "Applying $fn ..."
+    output=$(docker compose exec -T postgres psql -q -U ingesthub -d ingesthub \
+      -v ON_ERROR_STOP=1 -f "/docker-entrypoint-initdb.d/$fn" 2>&1)
+    rc=$?
+    echo "$output" | grep -v '^psql.*NOTICE:' || true
+    if [ $rc -eq 0 ]; then
+      docker compose exec -T postgres psql -q -U ingesthub -d ingesthub -c \
+        "INSERT INTO _migrations (filename) VALUES ('$fn');"
+    else
+      echo "  FAILED: $fn (not recorded — will retry next run)"
+    fi
+  fi
+done
+echo "All migrations applied."
+"""
+
+# ── API ────────────────────────────────────────────────────────
+
+[tasks.api]
+description = "Start FastAPI dev server (:8000)"
+depends = ["db", "migrate"]
+run = "uv run uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --reload-exclude 'frontend/*'"
+
+# ── Frontend ───────────────────────────────────────────────────
+
+[tasks.frontend]
+description = "Start Vite dev server (:8080)"
+dir = "frontend"
+run = "pnpm dev"
+
+# ── Dev ────────────────────────────────────────────────────────
+
+[tasks.dev]
+description = "Start DB + migrate + API + Frontend"
+depends = ["db", "migrate"]
+run = """
+#!/usr/bin/env bash
+set -e
+trap 'kill $(jobs -p) 2>/dev/null' EXIT
+echo "Starting API..."
+uv run uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --reload-exclude 'frontend/*' &
+echo "Starting Frontend..."
+cd frontend && pnpm dev &
+echo ""
+echo "  API:      http://localhost:8000/api"
+echo "  Frontend: http://localhost:8080"
+echo ""
+echo "Press Ctrl+C to stop"
+wait
+"""
+
+[tasks.stop]
+description = "Stop everything (DB + API + Frontend)"
+run = """
+#!/usr/bin/env bash
+pkill -f "uvicorn api.main:app" 2>/dev/null && echo "API stopped" || echo "API not running"
+pkill -f "vite.*--port 8080" 2>/dev/null && echo "Frontend stopped" || echo "Frontend not running"
+docker compose stop postgres 2>/dev/null
+"""
+
+[tasks.status]
+description = "Show status of DB, API, Frontend"
+run = """
+#!/usr/bin/env bash
+echo "── PostgreSQL ──"
+docker compose ps postgres 2>/dev/null || echo "  Not running"
+echo ""
+echo "── API (:8000) ──"
+curl -s http://localhost:8000/api/health >/dev/null 2>&1 && echo "  Running" || echo "  Not running"
+echo ""
+echo "── Frontend (:8080) ──"
+curl -s http://localhost:8080 >/dev/null 2>&1 && echo "  Running" || echo "  Not running"
+"""
+
+# ── Quality ────────────────────────────────────────────────────
+
+[tasks.lint]
+description = "Lint everything"
+depends = ["lint:api", "lint:fe"]
+
+[tasks."lint:api"]
+description = "Lint Python with ruff"
+run = "uv run ruff check ."
+
+[tasks."lint:fe"]
+description = "Lint frontend with biome"
+dir = "frontend"
+run = "pnpm biome check ."
+
+[tasks.format]
+description = "Format everything"
+depends = ["format:api", "format:fe"]
+
+[tasks."format:api"]
+description = "Format Python with ruff"
+run = "uv run ruff format ."
+
+[tasks."format:fe"]
+description = "Format frontend with biome"
+dir = "frontend"
+run = "pnpm biome format --write ."
+
+[tasks.fix]
+description = "Auto-fix lint + format everything"
+depends = ["fix:api", "fix:fe"]
+
+[tasks."fix:api"]
+description = "Fix Python (ruff format + lint --fix)"
+run = ["uv run ruff format .", "uv run ruff check --fix ."]
+
+[tasks."fix:fe"]
+description = "Fix frontend (biome check --write)"
+dir = "frontend"
+run = "pnpm biome check --write ."
+
+[tasks.typecheck]
+description = "Type check everything"
+depends = ["typecheck:api", "typecheck:fe"]
+
+[tasks."typecheck:api"]
+description = "Type check Python with ty"
+run = "uv run ty check"
+
+[tasks."typecheck:fe"]
+description = "Type check frontend with tsc"
+dir = "frontend"
+run = "pnpm tsc --noEmit"
+
+# ── Tests ──────────────────────────────────────────────────────
+
+[tasks.test]
+description = "Run all tests"
+depends = ["test:api", "test:fe"]
+
+[tasks."test:api"]
+description = "Run API tests"
+depends = ["db"]
+run = "uv run pytest tests/ -v"
+
+[tasks."test:fe"]
+description = "Run frontend tests"
+dir = "frontend"
+run = "pnpm test"

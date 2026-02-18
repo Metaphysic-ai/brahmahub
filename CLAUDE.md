@@ -11,7 +11,7 @@ Media asset ingestion and management platform for VFX/ATMAN projects. Scans raw 
 
 - **API**: FastAPI (async, asyncpg) — `api/`
 - **Frontend**: React + TypeScript + Vite + shadcn/ui + TanStack Query — `frontend/`
-- **Database**: PostgreSQL 16 (Docker) — migrations in `db/migrations/`
+- **Database**: PostgreSQL 16 (system) — migrations in `db/migrations/`
 - **CLI**: Click-based `ihub` tool — `cli/ingesthub_cli/`
 - **External**: Google Gemini API (ATMAN package analysis via google-genai, gemini-2.0-flash)
 - **Task runner**: mise — `mise.toml` (replaces Makefile)
@@ -22,14 +22,18 @@ Media asset ingestion and management platform for VFX/ATMAN projects. Scans raw 
 ## Development
 
 ```bash
-cp .env.example .env          # First time setup
-mise run setup                # Bootstrap everything (install tools, deps, hooks)
+mise trust                    # Trust mise.toml (first time only)
+mise run setup                # Bootstrap: tools, deps, hooks, .env, database
 mise run dev                  # Start everything (DB + migrate + API :8000 + Frontend :8080)
 mise run stop                 # Stop everything
 mise run status               # Check what's running
 ```
 
-Key mise tasks: `db`, `db:stop`, `db:logs`, `db:shell`, `migrate`, `api`, `frontend`, `test`, `test:api`, `test:fe`, `lint`, `typecheck`, `fix`, `format`
+`mise run setup` handles everything: installs runtimes (Python, Node, pnpm, ruff, ty, lefthook), creates `.env` from `.env.example`, creates the PostgreSQL role + database, installs Python and Node deps, and sets up git hooks. Assumes PostgreSQL superuser password is `postgres` (override with `PGPASSWORD=yourpass mise run setup`).
+
+After setup, edit `.env` to set `MEDIA_ROOT_PATHS` and `GOOGLE_API_KEY`.
+
+Key mise tasks: `db:check`, `db:shell`, `migrate`, `api`, `frontend`, `test`, `test:api`, `test:fe`, `lint`, `typecheck`, `fix`, `format`
 
 Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, `GOOGLE_API_KEY`
 
@@ -47,6 +51,13 @@ Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, 
 - **Type check**: `mise run typecheck` (ty + tsc)
 - Pre-commit hooks auto-format staged files via lefthook
 - Pre-push hooks run full lint + typecheck + tests
+
+## CI
+
+GitHub Actions runs on every PR and push to main (`.github/workflows/ci.yml`):
+- **api-quality**: ruff lint + format check + ty type check
+- **api-test**: PostgreSQL service + migrations + pytest
+- **frontend**: biome check + tsc + vitest
 
 ## Communication
 
@@ -165,7 +176,7 @@ graph TB
     end
 
     subgraph database["DATABASE"]
-        pg[("PostgreSQL 16<br/>(Docker)<br/>projects → subjects<br/>└ packages_subjects (M:M)<br/>└ packages (atman|vfx)<br/>&nbsp;&nbsp;└ assets (JSONB metadata, tags[])<br/>_migrations · v_project_summary · v_subject_summary")]
+        pg[("PostgreSQL 16<br/>(system)<br/>projects → subjects<br/>└ packages_subjects (M:M)<br/>└ packages (atman|vfx)<br/>&nbsp;&nbsp;└ assets (JSONB metadata, tags[])<br/>_migrations · v_project_summary · v_subject_summary")]
     end
 
     subgraph api["API LAYER"]

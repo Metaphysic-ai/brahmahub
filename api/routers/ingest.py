@@ -3,7 +3,6 @@
 import asyncio
 import json as _json
 import logging
-import sys
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -12,6 +11,16 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+from cli.ingesthub_cli.media import (
+    generate_image_thumbnail,
+    generate_video_proxy,
+    generate_video_thumbnail,
+    get_mime_type,
+    probe_audio,
+    probe_image,
+    probe_video,
+)
 
 from ..config import settings
 from ..database import get_conn
@@ -30,18 +39,6 @@ from ..services.datasets import (
 from ..services.metadata import read_face_metadata
 from .media import make_media_url
 from .subjects import normalize_subject_name
-
-# CLI media helpers live in the same monorepo
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from cli.ingesthub_cli.media import (
-    generate_image_thumbnail,
-    generate_video_proxy,
-    generate_video_thumbnail,
-    get_mime_type,
-    probe_audio,
-    probe_image,
-    probe_video,
-)
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 .venv/
 *.egg-info/
+.ruff_cache/
 
 # Node
 node_modules/
@@ -24,14 +25,9 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Claude Code
-.claude/
-
-# Pytest
+# Testing
 .pytest_cache/
-
-# Pip install junk (from unquoted version specifiers)
-=*
+coverage/
 
 # Proxies cache
 .ingesthub_proxies/

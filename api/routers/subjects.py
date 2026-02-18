@@ -1,21 +1,20 @@
 """Subject endpoints."""
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 
-from ..database import get_conn, build_update
+from ..database import build_update, get_conn
 from ..models import BulkDeleteRequest, PaginatedAssetResponse, SubjectCreate, SubjectResponse, SubjectUpdate
-from .media import make_media_url
 from .assets import _build_asset_filters, _paginated_asset_query
+from .media import make_media_url
 
 router = APIRouter()
 
 
 def normalize_subject_name(name: str) -> str:
     """Normalize subject name: strip, replace underscores with spaces, title case."""
-    return name.strip().replace('_', ' ').title()
+    return name.strip().replace("_", " ").title()
 
 
 def _enrich_subject(row: dict) -> dict:
@@ -27,7 +26,7 @@ def _enrich_subject(row: dict) -> dict:
 
 
 @router.get("", response_model=list[SubjectResponse])
-async def list_subjects(project_id: Optional[UUID] = Query(None)):
+async def list_subjects(project_id: UUID | None = Query(None)):
     async with get_conn() as conn:
         if project_id:
             rows = await conn.fetch(
@@ -55,7 +54,11 @@ async def create_subject(data: SubjectCreate):
             """INSERT INTO subjects (project_id, name, description, notes, tags)
                VALUES ($1, $2, $3, $4, $5)
                RETURNING id""",
-            data.project_id, normalize_subject_name(data.name), data.description, data.notes, data.tags,
+            data.project_id,
+            normalize_subject_name(data.name),
+            data.description,
+            data.notes,
+            data.tags,
         )
         subject_id = row["id"]
         result = await conn.fetchrow("SELECT * FROM v_subject_summary WHERE id = $1", subject_id)
@@ -65,8 +68,8 @@ async def create_subject(data: SubjectCreate):
 @router.put("/{subject_id}", response_model=SubjectResponse)
 async def update_subject(subject_id: UUID, data: SubjectUpdate):
     updates = {k: v for k, v in data.model_dump().items() if v is not None}
-    if 'name' in updates:
-        updates['name'] = normalize_subject_name(updates['name'])
+    if "name" in updates:
+        updates["name"] = normalize_subject_name(updates["name"])
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
 
@@ -92,8 +95,7 @@ async def bulk_delete_subjects(data: BulkDeleteRequest):
     if not data.ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
     async with get_conn() as conn:
-        result = await conn.execute(
-            "DELETE FROM subjects WHERE id = ANY($1::uuid[])", data.ids)
+        result = await conn.execute("DELETE FROM subjects WHERE id = ANY($1::uuid[])", data.ids)
         deleted_count = int(result.split()[-1])
         return {"deleted": deleted_count}
 
@@ -101,7 +103,7 @@ async def bulk_delete_subjects(data: BulkDeleteRequest):
 @router.get("/{subject_id}/packages")
 async def list_subject_packages(
     subject_id: UUID,
-    package_type: Optional[str] = Query(None),
+    package_type: str | None = Query(None),
 ):
     async with get_conn() as conn:
         if package_type:
@@ -110,7 +112,8 @@ async def list_subject_packages(
                    JOIN packages_subjects ps ON p.id = ps.package_id
                    WHERE ps.subject_id = $1 AND p.package_type = $2
                    ORDER BY p.ingested_at DESC""",
-                subject_id, package_type,
+                subject_id,
+                package_type,
             )
         else:
             rows = await conn.fetch(
@@ -123,21 +126,20 @@ async def list_subject_packages(
         return [dict(r) for r in rows]
 
 
-
 @router.get("/{subject_id}/assets", response_model=PaginatedAssetResponse)
 async def list_subject_assets(
     subject_id: UUID,
-    package_id: Optional[UUID] = Query(None),
-    file_type: Optional[str] = Query(None),
-    asset_type: Optional[str] = Query(None),
-    picked_up: Optional[bool] = Query(None),
-    search: Optional[str] = Query(None),
+    package_id: UUID | None = Query(None),
+    file_type: str | None = Query(None),
+    asset_type: str | None = Query(None),
+    picked_up: bool | None = Query(None),
+    search: str | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=500),
 ):
     """Get paginated assets for a subject across all its packages."""
     # Filter assets directly by their subject_id (supports multi-subject packages)
-    base_where = f"a.subject_id = $1"
+    base_where = "a.subject_id = $1"
     base_params: list = [subject_id]
 
     where, extra_params = _build_asset_filters(

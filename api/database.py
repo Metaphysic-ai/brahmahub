@@ -4,20 +4,17 @@ from __future__ import annotations
 
 import json
 from contextlib import asynccontextmanager
-from typing import Optional
 
 import asyncpg
 
 from .config import settings
 
-pool: Optional[asyncpg.Pool] = None
+pool: asyncpg.Pool | None = None
 
 
 async def _init_connection(conn):
     """Set up JSONB codec on each new connection."""
-    await conn.set_type_codec(
-        'jsonb', encoder=json.dumps, decoder=json.loads, schema='pg_catalog'
-    )
+    await conn.set_type_codec("jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
 
 
 async def init_pool():
@@ -53,7 +50,7 @@ def build_update(table: str, data: dict, id_val, id_col: str = "id"):
     The id value is appended as the last positional param.
     """
     fields = list(data.keys())
-    sets = ", ".join(f"{f} = ${i+1}" for i, f in enumerate(fields))
+    sets = ", ".join(f"{f} = ${i + 1}" for i, f in enumerate(fields))
     vals = list(data.values())
     vals.append(id_val)
     return f"UPDATE {table} SET {sets} WHERE {id_col} = ${len(vals)} RETURNING *", vals

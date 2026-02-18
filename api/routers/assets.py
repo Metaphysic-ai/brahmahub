@@ -1,11 +1,10 @@
 """Asset endpoints."""
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 
-from ..database import get_conn, build_update
+from ..database import build_update, get_conn
 from ..models import AssetResponse, AssetUpdate, BulkAssetUpdate, PaginatedAssetResponse
 from .media import make_media_url
 
@@ -24,12 +23,12 @@ def _enrich_asset(row: dict) -> dict:
 
 def _build_asset_filters(
     *,
-    package_id: Optional[UUID] = None,
-    file_type: Optional[str] = None,
-    asset_type: Optional[str] = None,
-    picked_up: Optional[bool] = None,
-    search: Optional[str] = None,
-    pose_bins: Optional[str] = None,
+    package_id: UUID | None = None,
+    file_type: str | None = None,
+    asset_type: str | None = None,
+    picked_up: bool | None = None,
+    search: str | None = None,
+    pose_bins: str | None = None,
     base_where: str = "",
     param_offset: int = 0,
 ) -> tuple[str, list]:
@@ -162,11 +161,11 @@ async def lookup_asset_by_path(disk_path: str = Query(...)):
 
 @router.get("", response_model=PaginatedAssetResponse)
 async def list_assets(
-    package_id: Optional[UUID] = Query(None),
-    file_type: Optional[str] = Query(None),
-    asset_type: Optional[str] = Query(None),
-    picked_up: Optional[bool] = Query(None),
-    search: Optional[str] = Query(None),
+    package_id: UUID | None = Query(None),
+    file_type: str | None = Query(None),
+    asset_type: str | None = Query(None),
+    picked_up: bool | None = Query(None),
+    search: str | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=500),
 ):
@@ -229,7 +228,7 @@ async def bulk_update_assets(data: BulkAssetUpdate):
         raise HTTPException(status_code=400, detail="No asset IDs provided")
 
     fields = list(updates.keys())
-    sets = ", ".join(f"{f} = ${i+1}" for i, f in enumerate(fields))
+    sets = ", ".join(f"{f} = ${i + 1}" for i, f in enumerate(fields))
     vals = list(updates.values())
     vals.append(data.asset_ids)
     id_param = f"${len(vals)}"

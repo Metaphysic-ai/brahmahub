@@ -5,6 +5,7 @@ from __future__ import annotations
 import mimetypes
 import os
 from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
@@ -23,7 +24,7 @@ def make_media_url(filesystem_path: str | None) -> str | None:
 
     for root in settings.media_root_paths:
         if filesystem_path.startswith(root):
-            relative = filesystem_path[len(root):].lstrip(os.sep)
+            relative = filesystem_path[len(root) :].lstrip(os.sep)
             return f"/media/{relative}"
 
     return None

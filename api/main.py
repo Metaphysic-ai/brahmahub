@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
         async with get_conn() as conn:
             result = await conn.execute(
                 "UPDATE packages SET status = 'error', "
-                "metadata = metadata || '{\"error\": \"Server restarted during ingest\"}'::jsonb "
+                'metadata = metadata || \'{"error": "Server restarted during ingest"}\'::jsonb '
                 "WHERE status = 'processing'"
             )
             if result != "UPDATE 0":

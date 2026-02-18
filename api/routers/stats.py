@@ -21,12 +21,8 @@ async def dashboard_stats():
                 (SELECT count(*) FROM assets) AS total_assets,
                 (SELECT COALESCE(SUM(file_size_bytes), 0) FROM assets) AS total_size_bytes
         """)
-        by_type_rows = await conn.fetch(
-            "SELECT file_type, count(*) AS n FROM assets GROUP BY file_type"
-        )
-        by_status_rows = await conn.fetch(
-            "SELECT review_status, count(*) AS n FROM assets GROUP BY review_status"
-        )
+        by_type_rows = await conn.fetch("SELECT file_type, count(*) AS n FROM assets GROUP BY file_type")
+        by_status_rows = await conn.fetch("SELECT review_status, count(*) AS n FROM assets GROUP BY review_status")
         recent_rows = await conn.fetch("""
             SELECT pkg.*,
                    agg.subject_names, agg.subject_ids,

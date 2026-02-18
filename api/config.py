@@ -21,19 +21,19 @@ class Settings:
         ),
     )
 
-    media_root_paths: list = field(default_factory=lambda: [
-        p.strip()
-        for p in os.environ.get("MEDIA_ROOT_PATHS", "").split(",")
-        if p.strip()
-    ])
+    media_root_paths: list = field(
+        default_factory=lambda: [p.strip() for p in os.environ.get("MEDIA_ROOT_PATHS", "").split(",") if p.strip()]
+    )
 
-    cors_origins: list = field(default_factory=lambda: [
-        o.strip()
-        for o in os.environ.get(
-            "CORS_ORIGINS",
-            "http://localhost:5173,http://localhost:3000,http://localhost:8080",
-        ).split(",")
-    ])
+    cors_origins: list = field(
+        default_factory=lambda: [
+            o.strip()
+            for o in os.environ.get(
+                "CORS_ORIGINS",
+                "http://localhost:5173,http://localhost:3000,http://localhost:8080",
+            ).split(",")
+        ]
+    )
 
     db_pool_min: int = int(os.environ.get("DB_POOL_MIN", "2"))
     db_pool_max: int = int(os.environ.get("DB_POOL_MAX", "10"))

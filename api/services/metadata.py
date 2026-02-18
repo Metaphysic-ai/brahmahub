@@ -11,10 +11,9 @@ import json
 import pickle
 import struct
 from pathlib import Path
-from typing import Union
 
 
-def read_face_metadata(png_path: Union[Path, str]) -> dict:
+def read_face_metadata(png_path: Path | str) -> dict:
     """Read face metadata from a PNG file.
 
     Returns a normalized dict with keys: pitch, yaw, roll, source_filename,
@@ -22,7 +21,7 @@ def read_face_metadata(png_path: Union[Path, str]) -> dict:
     """
     png_path = Path(png_path)
     try:
-        with open(png_path, "rb") as f:
+        with png_path.open("rb") as f:
             sig = f.read(8)
             if sig != b"\x89PNG\r\n\x1a\n":
                 return {}
@@ -47,7 +46,7 @@ def read_face_metadata(png_path: Union[Path, str]) -> dict:
                     if result:
                         return result
 
-    except (FileNotFoundError, IOError):
+    except (OSError, FileNotFoundError):
         return {}
 
     return {}
@@ -113,6 +112,7 @@ class _NumpySafeUnpickler(pickle.Unpickler):
 def _parse_fcwp(data: bytes) -> dict:
     """Parse fcWp pickle chunk into a normalized metadata dict."""
     import io
+
     try:
         raw = _NumpySafeUnpickler(io.BytesIO(data)).load()
     except Exception:
@@ -158,7 +158,7 @@ def _parse_dfl_text(chunk_data: bytes) -> dict:
     try:
         null_idx = chunk_data.index(b"\x00")
         key = chunk_data[:null_idx].decode("latin-1")
-        value = chunk_data[null_idx + 1:].decode("latin-1")
+        value = chunk_data[null_idx + 1 :].decode("latin-1")
     except (ValueError, UnicodeDecodeError):
         return {}
     if key == "dfl_header":

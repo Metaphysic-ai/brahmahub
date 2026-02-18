@@ -1,7 +1,6 @@
 """Dataset directory matching and symlink creation."""
 
 import logging
-import os
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -18,11 +17,7 @@ def list_dataset_dirs(datasets_root: str) -> list[str]:
     root = Path(datasets_root)
     if not root.is_dir():
         return []
-    return sorted(
-        entry.name
-        for entry in root.iterdir()
-        if entry.is_dir()
-    )
+    return sorted(entry.name for entry in root.iterdir() if entry.is_dir())
 
 
 def fuzzy_match_dataset(
@@ -125,7 +120,7 @@ def create_dataset_symlinks(
                 # Different target — remove stale link
                 target.unlink()
 
-            os.symlink(str(src), str(target))
+            target.symlink_to(src)
             created += 1
 
         except Exception as e:
@@ -135,6 +130,10 @@ def create_dataset_symlinks(
 
     logger.info(
         "Dataset symlinks for %s/%s: created=%d skipped=%d errors=%d",
-        Path(dataset_dir).name, package_name, created, skipped, len(errors),
+        Path(dataset_dir).name,
+        package_name,
+        created,
+        skipped,
+        len(errors),
     )
     return {"created": created, "skipped": skipped, "errors": errors}

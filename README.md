@@ -27,7 +27,7 @@ mise run setup
 
 # 3. Edit .env — set at minimum:
 #    MEDIA_ROOT_PATHS=/mnt/data,/mnt/x
-#    GOOGLE_API_KEY=your-key-here
+#    GEMINI_API_KEY=your-key-here
 
 # 4. Run migrations + start API + frontend
 mise run dev
@@ -104,7 +104,7 @@ Packages can belong to multiple subjects (M:M via `packages_subjects`).
 | `MEDIA_ROOT_PATHS` | _(none)_ | Comma-separated dirs the API can serve files from |
 | `PROXY_DIR` | `.ingesthub_proxies` | Where generated proxies and thumbnails are stored |
 | `DATASETS_ROOT` | _(none)_ | Root dir for dataset symlink mapping during ingest |
-| `GOOGLE_API_KEY` | _(none)_ | Gemini API key for ATMAN path analysis |
+| `GEMINI_API_KEY` | _(none)_ | Gemini API key for ATMAN path analysis |
 | `CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
 | `API_PORT` | `8000` | API server port |
 
@@ -164,4 +164,4 @@ cd frontend && pnpm install --frozen-lockfile && pnpm build
 for f in db/migrations/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 ```
 
-Required env vars in production: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `GOOGLE_API_KEY`, `CORS_ORIGINS`.
+Required env vars in production: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `GEMINI_API_KEY`, `CORS_ORIGINS`.

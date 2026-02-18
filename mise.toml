@@ -27,7 +27,7 @@ lefthook install
 # Create .env from example if it doesn't exist
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "Created .env from .env.example — edit MEDIA_ROOT_PATHS and GOOGLE_API_KEY."
+  echo "Created .env from .env.example — edit MEDIA_ROOT_PATHS and GEMINI_API_KEY."
 fi
 
 # Create database and role if they don't exist (override: PGPASSWORD=yourpass mise run setup)

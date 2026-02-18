@@ -340,7 +340,7 @@ def _call_gemini(file_facts: dict) -> list[dict]:
     Uses response_mime_type="application/json" for guaranteed JSON output.
     """
     if not settings.gemini_api_key:
-        raise ValueError("GOOGLE_API_KEY is not configured")
+        raise ValueError("GEMINI_API_KEY is not configured")
 
     client = genai.Client(api_key=settings.gemini_api_key)
     all_files = file_facts["files"]

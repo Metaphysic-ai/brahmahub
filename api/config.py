@@ -38,7 +38,7 @@ class Settings:
     db_pool_min: int = int(os.environ.get("DB_POOL_MIN", "2"))
     db_pool_max: int = int(os.environ.get("DB_POOL_MAX", "10"))
 
-    gemini_api_key: str = os.environ.get("GOOGLE_API_KEY", "")
+    gemini_api_key: str = os.environ.get("GEMINI_API_KEY", "")
 
     proxy_dir: str = os.environ.get("PROXY_DIR", ".ingesthub_proxies")
 

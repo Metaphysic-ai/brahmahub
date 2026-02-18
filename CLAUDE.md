@@ -31,11 +31,11 @@ mise run status               # Check what's running
 
 `mise run setup` handles everything: installs runtimes (Python, Node, pnpm, ruff, ty, lefthook), creates `.env` from `.env.example`, creates the PostgreSQL role + database, installs Python and Node deps, and sets up git hooks. Assumes PostgreSQL superuser password is `postgres` (override with `PGPASSWORD=yourpass mise run setup`).
 
-After setup, edit `.env` to set `MEDIA_ROOT_PATHS` and `GOOGLE_API_KEY`.
+After setup, edit `.env` to set `MEDIA_ROOT_PATHS` and `GEMINI_API_KEY`.
 
 Key mise tasks: `db:check`, `db:shell`, `migrate`, `api`, `frontend`, `test`, `test:api`, `test:fe`, `lint`, `typecheck`, `fix`, `format`
 
-Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, `GOOGLE_API_KEY`
+Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, `GEMINI_API_KEY`
 
 ## Testing
 

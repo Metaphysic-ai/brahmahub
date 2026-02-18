@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 *.egg-info/
 .ruff_cache/
+api/_version.py
 
 # Node
 node_modules/

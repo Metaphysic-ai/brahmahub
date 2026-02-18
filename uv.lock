@@ -75,7 +75,6 @@ wheels = [
 
 [[package]]
 name = "brahmahub"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },

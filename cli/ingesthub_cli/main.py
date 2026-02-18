@@ -25,7 +25,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from . import db, media
+from . import __version__, db, media
 
 console = Console()
 
@@ -48,7 +48,7 @@ def _resolve_proxy_dir(source_path: Path, proxy_dir: str | None) -> Path:
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(version=__version__)
 def cli():
     """IngestHub CLI — ingest and manage media datasets."""
     pass

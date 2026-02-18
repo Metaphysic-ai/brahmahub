@@ -14,6 +14,7 @@ import { AddPackageDialog } from "@/components/AddPackageDialog";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatVersionShort } from "@/lib/version";
 
 export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -146,7 +147,7 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
 
       <div className="border-t border-sidebar-border/40 px-3 py-2.5 flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-status-ready shrink-0" />
-        {!collapsed && <span className="text-2xs text-sidebar-foreground/40">v0.1.0-dev</span>}
+        {!collapsed && <span className="text-2xs text-sidebar-foreground/40">{formatVersionShort()}</span>}
       </div>
 
       <AddPackageDialog open={ingestOpen} onOpenChange={setIngestOpen} forcedPackageType="atman" />

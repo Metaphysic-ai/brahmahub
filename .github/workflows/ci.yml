@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen
       - run: uv run ruff check .
@@ -42,6 +44,8 @@ jobs:
       DATABASE_URL: postgresql://ingesthub:ingesthub_dev_2024@localhost:5432/ingesthub
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen
       - name: Apply migrations
@@ -59,6 +63,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10

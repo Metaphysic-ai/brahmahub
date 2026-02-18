@@ -111,6 +111,16 @@ tests/                        # pytest API tests (pytest-asyncio + httpx)
 | `v_project_summary` | View: project with counts and total size |
 | `v_subject_summary` | View: subject with counts and total size |
 
+## Versioning
+
+Git-tag-based via `hatch-vcs`. Single source of truth: git tags (`v0.1.0`).
+
+- **Python**: `hatch-vcs` derives version from git tags → `importlib.metadata.version("brahmahub")` at runtime
+- **CLI**: `uv run ihub --version` reads from package metadata
+- **API**: `/api/health` returns `{"status": "ok", "version": "..."}`, FastAPI OpenAPI schema includes version
+- **Frontend**: Vite injects `__APP_VERSION__` at build time via `git describe` → displayed in sidebar
+- **Releasing**: `git tag v0.2.0 && git push --tags` — no files to edit
+
 ## Git & Workflow
 
 **Conventional commits:** `type(scope): description`

@@ -2,6 +2,7 @@
 
 import logging
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,11 @@ from .database import close_pool, get_conn, init_pool
 from .routers import assets, ingest, media, packages, projects, search, stats, subjects
 
 logger = logging.getLogger(__name__)
+
+try:
+    __version__ = version("brahmahub")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"
 
 
 @asynccontextmanager
@@ -33,8 +39,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="IngestHub API",
-    version="0.1.0",
+    title="BrahmaHub API",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -58,4 +64,4 @@ app.include_router(media.router, prefix="/media", tags=["media"])
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": __version__}

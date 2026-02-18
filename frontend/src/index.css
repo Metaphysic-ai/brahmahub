@@ -1,0 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 8% 7%;
+    --foreground: 210 40% 98%;
+
+    --card: 225 7% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 225 7% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 213 60% 50%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 225 5% 14%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 225 5% 14%;
+    --muted-foreground: 220 12% 45%;
+
+    --accent: 225 5% 16%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 225 5% 15%;
+    --input: 225 5% 18%;
+    --ring: 213 60% 50%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 225 8% 5%;
+    --sidebar-foreground: 220 10% 55%;
+    --sidebar-primary: 213 60% 50%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 225 6% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 225 5% 13%;
+    --sidebar-ring: 213 60% 50%;
+
+    --status-ingested: 213 60% 55%;
+    --status-processing: 38 80% 55%;
+    --status-ready: 142 55% 45%;
+    --status-error: 0 72% 55%;
+
+    --success: 160 55% 45%;
+    --warning: 38 80% 55%;
+    --info: 213 60% 55%;
+
+    --chart-1: 213 60% 50%;
+    --chart-2: 38 80% 55%;
+    --chart-3: 142 55% 45%;
+    --chart-4: 280 50% 55%;
+    --chart-5: 25 70% 50%;
+
+    --dataset: 280 50% 55%;
+    --dataset-foreground: 280 50% 75%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    letter-spacing: 0.01em;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(225 5% 20% / 0.6);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(225 5% 30% / 0.8);
+  }
+}
+
+@layer utilities {
+  .font-mono-path {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .glass-card {
+    @apply backdrop-blur-xl border-border/30;
+    background: hsl(225 7% 10% / 0.8);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 12px hsl(213 60% 50% / 0.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

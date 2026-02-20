@@ -1,0 +1,22 @@
+# Traefik Dynamic Configuration
+# Copy to /etc/traefik/dynamic.yml
+
+http:
+  routers:
+    brahmahub:
+      rule: "Host(`brahmahub.example.com`)"
+      entryPoints:
+        - websecure
+      service: brahmahub-api
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    brahmahub-api:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8000"
+        healthCheck:
+          path: /api/health
+          interval: 30s
+          timeout: 5s

@@ -47,10 +47,10 @@ commit-msg:
     conventional-commit:
       run: |
         msg=$(head -1 {1})
-        if ! echo "$msg" | grep -qE '^((fixup|squash|amend)! )?(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\((api|frontend|cli|db)\))?!?: .+'; then
+        if ! echo "$msg" | grep -qE '^((fixup|squash|amend)! )?(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\((api|frontend|cli|db|deploy)\))?!?: .+'; then
           echo "Invalid commit message: $msg"
           echo "Expected: type(scope): description"
           echo "Types: feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
-          echo "Scopes: api|frontend|cli|db"
+          echo "Scopes: api|frontend|cli|db|deploy"
           exit 1
         fi

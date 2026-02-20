@@ -161,7 +161,7 @@ Every commit message **must** follow [conventional commits](https://www.conventi
 |------|-------------|----------------|
 | `feat` | New functionality visible to users | Version bump (patch pre-1.0, minor after) |
 | `fix` | Bug fix | Patch bump |
-| `perf` | Performance improvement | No release (appears in changelog) |
+| `perf` | Performance improvement | No bump (included in next release's changelog) |
 | `docs` | Documentation only | No release |
 | `style` | Formatting, whitespace, semicolons | No release |
 | `refactor` | Code change that doesn't fix a bug or add a feature | No release |

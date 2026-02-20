@@ -19,7 +19,9 @@ def read_face_metadata(png_path: Path | str) -> dict:
     Returns a normalized dict with keys: pitch, yaw, roll, source_filename,
     landmarks, confidence/sharpness, etc. Returns empty dict if no metadata found.
     """
-    png_path = Path(png_path)
+    png_path = Path(png_path).resolve()
+    if not png_path.is_file():
+        return {}
     try:
         with png_path.open("rb") as f:
             sig = f.read(8)

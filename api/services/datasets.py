@@ -99,16 +99,24 @@ def create_dataset_symlinks(
     skipped = 0
     errors: list[str] = []
 
-    base = Path(dataset_dir) / "media" / "external" / "from_client" / package_name
+    # Sanitize path components to prevent directory traversal
+    safe_pkg = Path(package_name).name
+    base = Path(dataset_dir).resolve() / "media" / "external" / "from_client" / safe_pkg
 
     for asset in assets:
         src = Path(asset["original_path"])
         ext = src.suffix.lower()
 
         media_type = "audio" if (asset.get("file_type") == "audio" or ext in _AUDIO_EXTS) else "visuals"
-        asset_type = asset.get("asset_type", "raw")
+        safe_asset_type = Path(asset.get("asset_type", "raw")).name
 
-        target = base / media_type / asset_type / src.name
+        target = base / media_type / safe_asset_type / src.name
+        # Ensure target stays within the dataset directory
+        try:
+            target.parent.resolve().relative_to(base.resolve())
+        except ValueError:
+            errors.append(f"{src.name}: path escapes dataset directory")
+            continue
 
         try:
             target.parent.mkdir(parents=True, exist_ok=True)

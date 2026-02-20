@@ -69,7 +69,7 @@ GitHub Actions workflows in `.github/workflows/`. All actions are SHA-pinned for
 - **update-changelog**: runs git-cliff on the Release PR branch to generate `CHANGELOG.md`
 - **automerge**: enables auto-merge on the Release PR (runs after changelog to avoid race condition)
 - **build-release**: on Release PR merge, builds frontend, uploads `frontend-dist.tar.gz` to the GitHub Release. Quality checks are not duplicated here — they run via CI on the PR before merge (enforced by branch protection)
-- Uses GitHub App token (`vars.RELEASE_APP_ID` + `secrets.RELEASE_APP_PRIVATE_KEY`) so Release PR triggers CI
+- Uses `brahmahub-release` GitHub App token (`vars.RELEASE_APP_ID` + `secrets.RELEASE_APP_PRIVATE_KEY`) so Release PR triggers CI. This app is a branch protection bypass actor — Release PRs auto-merge without manual approval.
 - Job-level permissions (least privilege) instead of workflow-level
 
 **PR** (`pr.yml`): runs on every PR (opened/edited/synchronize)
@@ -164,7 +164,7 @@ Static version in `pyproject.toml`, managed by release-please. Single source of 
 Automatic self-update from GitHub Releases. When configured, a background task checks for new releases every 5 minutes and auto-applies updates. Requires `UPDATE_REPO` + GitHub App credentials (`GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY_PATH`, `GITHUB_INSTALLATION_ID`).
 
 - **Auto-update loop**: Background `asyncio` task started from lifespan. Checks every `AUTO_UPDATE_INTERVAL` seconds (default 300). On new release: `git fetch` + `git checkout <tag>` + download `frontend-dist.tar.gz` (atomic swap) → `SIGTERM` → systemd restarts → `uv run` syncs deps → lifespan runs migrations → app ready. Failed versions enter 1-hour cooldown before retry.
-- **Authentication**: Uses a GitHub App with auto-rotating installation tokens (1-hour TTL, cached with 5-min refresh margin). No long-lived PATs. Auth module: `api/services/github_auth.py`. App needs **Contents: read-only** permission.
+- **Authentication**: Uses the `brahmahub-updater` GitHub App with auto-rotating installation tokens (1-hour TTL, cached with 5-min refresh margin). No long-lived PATs. Auth module: `api/services/github_auth.py`. App needs **Contents: read-only** permission.
 - **`GET /api/system/info`**: Returns current version, latest GitHub Release info, and `update_available` flag (5-min cached)
 - **Frontend version check**: Polls `/api/health` every 60s. When a version mismatch is detected, shows a floating bottom-center pill ("A newer version of BrahmaHub is available" + Refresh button). User decides when to refresh -- no forced auto-reload. Dismissible, reappears after 30 minutes.
 - **Frontend static serving**: `api/main.py` mounts `frontend/dist/` at `/` via `SPAStaticFiles` (returns `index.html` for SPA routes). Only active when `frontend/dist/` exists (production). In dev, Vite dev server handles frontend.

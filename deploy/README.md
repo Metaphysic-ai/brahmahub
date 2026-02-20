@@ -4,23 +4,18 @@
 
 Internal data center deployment with Let's Encrypt SSL via Route53 DNS challenge.
 
-```
-DC Internal Network
-    ↓ :443 (HTTPS)
-┌──────────────────────────────────────────────────┐
-│  Traefik (SSL termination)                       │
-│  - Let's Encrypt via Route53 DNS-01 challenge    │
-│  - HTTP → HTTPS redirect                        │
-│  - Health checks on /api/health                  │
-└──────────────────────────────────────────────────┘
-    ↓ :8000 (HTTP)
-┌──────────────────────────────────────────────────┐
-│  FastAPI (uv run uvicorn)                        │
-│  - /api/*    → REST API                         │
-│  - /media/*  → file serving (proxies, thumbs)    │
-│  - /*        → frontend/dist/ (SPA)              │
-│  - Lifespan: migrations → crash recovery         │
-└──────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    A["DC Internal Network"] --> B
+    B["Traefik :443 (HTTPS)
+    Let's Encrypt via Route53 DNS-01
+    HTTP → HTTPS redirect
+    Health checks on /api/health"] --> C
+    C["FastAPI :8000 (HTTP)
+    /api/* → REST API
+    /media/* → file serving
+    /* → frontend/dist/ (SPA)
+    Lifespan: migrations → crash recovery"]
 ```
 
 ## Quick Start
@@ -201,9 +196,18 @@ curl https://brahmahub.example.com/
 curl -v https://brahmahub.example.com 2>&1 | grep "subject:"
 ```
 
-## GitHub App Setup (for Self-Update)
+## GitHub App Setup
 
-The self-update system uses a GitHub App for authentication. This avoids long-lived PATs — tokens are auto-rotated with a 1-hour TTL. The app only needs read access to pull releases from the private repo.
+BrahmaHub uses two GitHub Apps. Both are server-to-server (no OAuth) with auto-rotating tokens (1-hour TTL). No long-lived PATs.
+
+| App | Purpose | Permissions | Where configured |
+|-----|---------|-------------|------------------|
+| `brahmahub-updater` | Production server pulls releases | Contents: **read** | Server `.env` |
+| `brahmahub-release` | CI creates + auto-merges Release PRs | Contents: **read/write**, Pull requests: **read/write** | GitHub Actions vars/secrets |
+
+They are separate to enforce least privilege — the production server key can only read, so a leak can't push code.
+
+### `brahmahub-updater` (self-update)
 
 ### 1. Create the App
 
@@ -265,6 +269,66 @@ Check the logs for a clean startup (no GitHub App warnings):
 ```bash
 sudo journalctl -u brahmahub-api --no-pager -n 20
 ```
+
+### `brahmahub-release` (CI releases)
+
+Follow the same creation steps as above with these differences:
+
+**1. Create the App**
+
+| Field | Value |
+|-------|-------|
+| Name | `brahmahub-release` |
+| Homepage URL | Any valid URL |
+| Webhook | **Uncheck "Active"** |
+| Permissions > Repository permissions > Contents | **Read and write** |
+| Permissions > Repository permissions > Pull requests | **Read and write** |
+| Where can this app be installed? | **Only on this account** |
+
+**2. Generate a Private Key** — same as above (download `.pem`).
+
+**3. Install on the repo** — same as above. Note the Installation ID.
+
+**4. Configure GitHub Actions**
+
+In the repo (or org) settings, add:
+
+- **Variable**: `RELEASE_APP_ID` = the App ID
+- **Secret**: `RELEASE_APP_PRIVATE_KEY` = contents of the `.pem` file
+
+Path: **Settings > Secrets and variables > Actions**
+
+**5. Add as branch protection bypass actor**
+
+The release app needs to merge its own PRs without manual approval. Add it as a bypass actor:
+
+```bash
+gh api repos/Metaphysic-ai/brahmahub/branches/main/protection -X PUT \
+  --input - <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["gate"]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": true,
+    "required_approving_review_count": 1,
+    "require_last_push_approval": true,
+    "bypass_pull_request_allowances": {
+      "apps": ["brahmahub-release"]
+    }
+  },
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "required_conversation_resolution": true,
+  "restrictions": null
+}
+EOF
+```
+
+Or via UI: **Settings > Branches > main > Edit > Allow specified actors to bypass required pull requests** > add the `brahmahub-release` app.
 
 ## Updating
 

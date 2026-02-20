@@ -9,3 +9,8 @@ async def test_health_returns_ok(client: AsyncClient):
     data = resp.json()
     assert data["status"] == "ok"
     assert "version" in data
+
+
+async def test_health_cache_control_no_store(client: AsyncClient):
+    resp = await client.get("/api/health")
+    assert resp.headers["cache-control"] == "no-store"

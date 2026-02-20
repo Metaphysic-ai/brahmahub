@@ -1,20 +1,13 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["api", "cli"]
 
-[tool.hatch.version]
-source = "vcs"
-fallback-version = "0.0.0"
-
-[tool.hatch.build.hooks.vcs]
-version-file = "api/_version.py"
-
 [project]
 name = "brahmahub"
-dynamic = ["version"]
+version = "0.0.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
@@ -28,6 +21,7 @@ dependencies = [
     "psycopg2-binary>=2.9",
     "click>=8.0",
     "rich>=13.0",
+    "pyjwt[crypto]>=2.8",
 ]
 
 [project.scripts]
@@ -87,6 +81,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "cli/**" = ["B905", "S110", "S603", "S607"]  # zip strict, except-pass, subprocess — CLI scripts
+"api/routers/system.py" = ["S603", "S607"]       # subprocess — self-update runs git
+"api/services/github_auth.py" = ["S310"]          # urlopen — GitHub API calls for token exchange
 "tests/**" = ["S101", "S106", "S108"]            # assert, hardcoded values, /tmp paths are expected in tests
 
 # ── ty ─────────────────────────────────────────────────────────

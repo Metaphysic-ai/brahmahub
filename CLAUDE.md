@@ -33,9 +33,9 @@ mise run status               # Check what's running
 
 After setup, edit `.env` to set `MEDIA_ROOT_PATHS` and `GEMINI_API_KEY`.
 
-Key mise tasks: `db:check`, `db:shell`, `migrate`, `api`, `frontend`, `test`, `test:api`, `test:fe`, `lint`, `typecheck`, `fix`, `format`
+Key mise tasks: `db:check`, `db:shell`, `migrate`, `api`, `frontend`, `dev`, `test`, `test:api`, `test:fe`, `lint`, `typecheck`, `fix`, `format`
 
-Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, `GEMINI_API_KEY`
+Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, `GEMINI_API_KEY`, `UPDATE_REPO`, `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY_PATH`, `GITHUB_INSTALLATION_ID`, `AUTO_UPDATE_INTERVAL`
 
 ## Testing
 
@@ -52,12 +52,39 @@ Key env vars: `DATABASE_URL`, `MEDIA_ROOT_PATHS`, `PROXY_DIR`, `DATASETS_ROOT`, 
 - Pre-commit hooks auto-format staged files via lefthook
 - Pre-push hooks run full lint + typecheck + tests
 
-## CI
+## CI/CD
 
-GitHub Actions runs on every PR and push to main (`.github/workflows/ci.yml`):
-- **api-quality**: ruff lint + format check + ty type check
-- **api-test**: PostgreSQL service + migrations + pytest
+GitHub Actions workflows in `.github/workflows/`. All actions are SHA-pinned for supply chain security.
+
+**CI** (`ci.yml` → calls `checks.yml`): runs on every PR, push to main, and merge queue
+- `checks.yml` uses `dorny/paths-filter` to skip irrelevant jobs (e.g., API tests skip on frontend-only changes)
+- **api-quality**: ruff lint + format check + ty type check (uv caching enabled)
+- **api-test**: PostgreSQL service + migrations + pytest (uv caching enabled)
 - **frontend**: biome check + tsc + vitest
+- **gate**: "All checks passed" job for branch protection (handles skipped jobs correctly)
+- **build** (main only): `pnpm build` smoke test, uploads artifacts
+
+**Release** (`release.yml`): triggered on every push to main
+- **release-please**: opens/updates a Release PR with version bump in `pyproject.toml`
+- **update-changelog**: runs git-cliff on the Release PR branch to generate `CHANGELOG.md`
+- **automerge**: enables auto-merge on the Release PR (runs after changelog to avoid race condition)
+- **build-release**: on Release PR merge, builds frontend, uploads `frontend-dist.tar.gz` to the GitHub Release. Quality checks are not duplicated here — they run via CI on the PR before merge (enforced by branch protection)
+- Uses GitHub App token (`vars.RELEASE_APP_ID` + `secrets.RELEASE_APP_PRIVATE_KEY`) so Release PR triggers CI
+- Job-level permissions (least privilege) instead of workflow-level
+
+**PR** (`pr.yml`): runs on every PR (opened/edited/synchronize)
+- **title**: validates conventional commit format via `amannn/action-semantic-pull-request`
+- **labels**: scope labels (by files changed), size labels (xs/s/m/l/xl), version impact labels (major/minor/patch/no-release)
+- **dependency-review**: flags vulnerable or license-incompatible new dependencies (`fail-on-severity: high`)
+- **migration-warning**: comments on PRs that include `db/migrations/` changes
+
+**CodeQL** (`codeql.yml`): SAST scanning for Python + TypeScript
+- Runs on push to main, PRs targeting main, and weekly (Monday 6 AM UTC)
+- Results appear in GitHub Security tab
+
+**Releasing**: Merge PRs with conventional commits → release-please opens Release PR → merge it → tag + GitHub Release + frontend build. No manual steps.
+
+**CODEOWNERS**: `.github/CODEOWNERS` requires review for CI/CD pipeline changes.
 
 ## Communication
 
@@ -71,10 +98,11 @@ api/                          # FastAPI backend (async, asyncpg)
 │   ├── assets.py, packages.py, projects.py, subjects.py
 │   ├── ingest.py             # Ingest wizard + SSE streaming
 │   ├── media.py              # File serving (proxies, thumbs)
-│   ├── search.py, stats.py
+│   ├── search.py, stats.py, system.py
 ├── services/                 # Business logic
 │   ├── analyzer.py           # Package type detection (ATMAN/VFX)
 │   ├── datasets.py           # Fuzzy dataset matching + symlinks
+│   ├── github_auth.py        # GitHub App JWT auth + installation token caching
 │   └── metadata.py           # PNG face metadata extraction
 ├── config.py, database.py, models.py, main.py
 
@@ -93,6 +121,15 @@ frontend/src/                 # React + Vite + shadcn/ui
 ├── services/                 # API client functions (fetch + SSE)
 ├── lib/                      # Helpers (formatters, paths, tagColors)
 └── types/                    # TypeScript type declarations
+
+deploy/                       # Production deployment configs
+├── README.md                 # Setup guide (Traefik + systemd + troubleshooting)
+├── brahmahub-api.service     # systemd unit (uv run uvicorn, Restart=always)
+└── traefik/                  # Traefik reverse proxy (all traefik files together)
+    ├── traefik.service       # systemd unit for Traefik
+    ├── traefik.yml           # Static config (entrypoints, TLS, providers)
+    ├── dynamic.yml           # Dynamic config (routing, health checks)
+    └── traefik.env.example   # AWS credentials + ACME email template
 
 db/migrations/                # SQL migrations (tracked via _migrations table)
 tests/                        # pytest API tests (pytest-asyncio + httpx)
@@ -113,19 +150,50 @@ tests/                        # pytest API tests (pytest-asyncio + httpx)
 
 ## Versioning
 
-Git-tag-based via `hatch-vcs`. Single source of truth: git tags (`v0.1.0`).
+Static version in `pyproject.toml`, managed by release-please. Single source of truth: `pyproject.toml` `version` field + git tags (`v0.1.0`).
 
-- **Python**: `hatch-vcs` derives version from git tags → `importlib.metadata.version("brahmahub")` at runtime
+- **Python**: `importlib.metadata.version("brahmahub")` at runtime (reads from installed package metadata)
 - **CLI**: `uv run ihub --version` reads from package metadata
 - **API**: `/api/health` returns `{"status": "ok", "version": "..."}`, FastAPI OpenAPI schema includes version
-- **Frontend**: Vite injects `__APP_VERSION__` at build time via `git describe` → displayed in sidebar
-- **Releasing**: `git tag v0.2.0 && git push --tags` — no files to edit
+- **Frontend**: Vite injects `VITE_APP_VERSION` at build time → displayed in sidebar
+- **Releasing**: Automated via release-please. Merge PRs → Release PR opens → merge it → tag + GitHub Release (see CI/CD)
+- **Config**: `.github/release-please-config.json` + `.github/.release-please-manifest.json`
+
+## Self-Update
+
+Automatic self-update from GitHub Releases. When configured, a background task checks for new releases every 5 minutes and auto-applies updates. Requires `UPDATE_REPO` + GitHub App credentials (`GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY_PATH`, `GITHUB_INSTALLATION_ID`).
+
+- **Auto-update loop**: Background `asyncio` task started from lifespan. Checks every `AUTO_UPDATE_INTERVAL` seconds (default 300). On new release: `git fetch` + `git checkout <tag>` + download `frontend-dist.tar.gz` (atomic swap) → `SIGTERM` → systemd restarts → `uv run` syncs deps → lifespan runs migrations → app ready. Failed versions enter 1-hour cooldown before retry.
+- **Authentication**: Uses a GitHub App with auto-rotating installation tokens (1-hour TTL, cached with 5-min refresh margin). No long-lived PATs. Auth module: `api/services/github_auth.py`. App needs **Contents: read-only** permission.
+- **`GET /api/system/info`**: Returns current version, latest GitHub Release info, and `update_available` flag (5-min cached)
+- **Frontend version check**: Polls `/api/health` every 60s. When a version mismatch is detected, shows a floating bottom-center pill ("A newer version of BrahmaHub is available" + Refresh button). User decides when to refresh -- no forced auto-reload. Dismissible, reappears after 30 minutes.
+- **Frontend static serving**: `api/main.py` mounts `frontend/dist/` at `/` via `SPAStaticFiles` (returns `index.html` for SPA routes). Only active when `frontend/dist/` exists (production). In dev, Vite dev server handles frontend.
+- **Cache headers**: `SPAStaticFiles` sets per-path `Cache-Control` -- `no-cache` on `index.html` (always fresh), `immutable` on `/assets/*` (Vite content-hashed), `max-age=1hr` on other static files. `/api/health` returns `no-store` so version polling is never cached.
+- **Cache-busting reload**: Version banner refresh navigates to `?_v=<timestamp>` to defeat aggressive proxy caches, then `AppLayout` strips the param from the URL on mount.
+- **Chunk error recovery**: `ErrorBoundary` detects stale chunk imports (old JS files missing after deploy) and auto-reloads once (guarded by `sessionStorage` to prevent loops).
+- **Migrations at startup**: `api/main.py` lifespan runs `_run_migrations()` on every startup -- covers fresh deploys, self-updates, and crash recovery restarts.
+- **Env vars**: `UPDATE_REPO` (e.g., `Metaphysic-ai/brahmahub`), `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY_PATH`, `GITHUB_INSTALLATION_ID`, `AUTO_UPDATE_INTERVAL` (default 300s, 0 to disable). See `deploy/README.md` for GitHub App setup guide.
+
+## Deployment
+
+Production deployment uses systemd + Traefik. Config templates in `deploy/`.
+
+```
+Internet/LAN → Traefik (:80/:443) → FastAPI (:8000)
+                                      ├── /api/*   → API routes
+                                      ├── /media/* → file serving
+                                      └── /*       → frontend/dist/ (SPA)
+```
+
+- **systemd**: `deploy/brahmahub-api.service` — runs `uv run uvicorn` on `127.0.0.1:8000`, `Restart=always` (enables self-update SIGTERM restart), `EnvironmentFile=/opt/brahmahub/.env`
+- **Traefik**: `deploy/traefik/traefik.yml` (static: entrypoints, TLS via Let's Encrypt DNS-01/Route53) + `deploy/traefik/dynamic.yml` (dynamic: routing to FastAPI, health checks on `/api/health`) + `deploy/traefik/traefik.env.example` (AWS credentials)
+- **Setup**: See `deploy/README.md` for full step-by-step guide
 
 ## Git & Workflow
 
 **Conventional commits:** `type(scope): description`
 - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
-- Scopes: `api`, `frontend`, `cli`, `db`
+- Scopes: `api`, `frontend`, `cli`, `db`, `deploy`
 
 ## Adding New Features
 
@@ -153,7 +221,8 @@ Git-tag-based via `hatch-vcs`. Single source of truth: git tags (`v0.1.0`).
 - **Proxy paths are absolute**: stored as full disk paths in DB, served via `/media/{path}` with `MEDIA_ROOT_PATHS` prefix stripping
 - **Dataset symlinks are best-effort**: failures don't block ingest (non-fatal)
 - **`packages.subject_id`**: direct FK for primary subject, plus M:M via `packages_subjects` for multi-subject packages
-- **Startup crash recovery**: API lifespan auto-marks packages stuck in `'processing'` as `'error'` on restart — re-ingest required
+- **Startup sequence**: Lifespan runs migrations → crash recovery (marks stuck packages as error) → starts auto-update loop (if configured) → ready. Migrations run on every startup.
+- **SPA static serving**: `frontend/dist/` mounted at `/` only when directory exists. In dev, Vite dev server handles frontend; in production, FastAPI serves it directly
 - **Migrations are squashed**: `001_initial_schema.sql` contains the full schema (squashed from 001–015)
 - **uv, not pip**: Python deps managed via `uv sync` — never use pip directly
 - **pnpm, not npm**: Frontend deps managed via `pnpm install` — never use npm directly
@@ -189,18 +258,39 @@ graph TB
         pg[("PostgreSQL 16<br/>(system)<br/>projects → subjects<br/>└ packages_subjects (M:M)<br/>└ packages (atman|vfx)<br/>&nbsp;&nbsp;└ assets (JSONB metadata, tags[])<br/>_migrations · v_project_summary · v_subject_summary")]
     end
 
-    subgraph api["API LAYER"]
-        fastapi["FastAPI :8000<br/>api/main.py<br/>(fully async, asyncpg)<br/>4-worker ThreadPool for ffmpeg"]
+    subgraph proxy["REVERSE PROXY"]
+        traefik["Traefik :80/:443<br/>deploy/traefik/<br/>TLS termination (Let's Encrypt DNS-01/Route53)<br/>health checks on /api/health"]
     end
 
-    subgraph fe["FRONTEND"]
+    subgraph api["API LAYER"]
+        fastapi["FastAPI :8000<br/>api/main.py<br/>(fully async, asyncpg)<br/>4-worker ThreadPool for ffmpeg<br/>lifespan: migrations + crash recovery"]
+        spa["SPA Static Files<br/>frontend/dist/ → /*<br/>(production only)"]
+    end
+
+    subgraph fe["FRONTEND (dev)"]
         react["React + TypeScript + Vite :8080<br/>frontend/"]
+    end
+
+    subgraph selfupdate["SELF-UPDATE"]
+        ghrel(("GitHub Releases<br/>(version check + frontend-dist.tar.gz)"))
+        sysrouter["System Router<br/>api/routers/system.py<br/>GET /api/system/info<br/>auto-update background task"]
+        vcheck["Version Check<br/>useVersionCheck hook<br/>polls /api/health 60s<br/>VersionBanner component"]
+    end
+
+    subgraph deploy["PROCESS MANAGEMENT"]
+        systemd["systemd<br/>deploy/brahmahub-api.service<br/>Restart=always · RestartSec=3"]
     end
 
     cli -- "SQL INSERT (psycopg2)" --> pg
     analyzer -- "SQL INSERT (psycopg2)" --> pg
     pg -- "async SQL (asyncpg pool)" --> fastapi
-    react -- "REST JSON + SSE streams + /media files" --> fastapi
+    traefik -- "/* → :8000" --> fastapi
+    fastapi -- "SPA fallback" --> spa
+    react -. "dev only" .-> fastapi
+    sysrouter -- "auto-check + download frontend dist" --> ghrel
+    sysrouter -- "auto-update: git checkout + SIGTERM" --> systemd
+    systemd -- "restart → uv run uvicorn" --> fastapi
+    vcheck -- "poll /api/health" --> fastapi
 ```
 
 ### API Routes
@@ -224,16 +314,17 @@ graph TB
 | `/api/ingest/dataset-dirs` | GET | |
 | `/api/ingest/resolve-datasets` | POST | |
 | `/api/ingest/execute-stream` | SSE | |
+| `/api/system/info` | GET | Version + latest release + update_available |
 | `/media/{path}` | GET | FileResponse + cache, proxy_dir from PROXY_DIR env |
 
 ### Frontend Structure
 
 **Pages**: Dashboard, Projects, ProjectDetail, SubjectDetail, Subjects, PackageDetail, PackageListPage (shared for atman/vfx via props: packageType, title, entityLabel)
 
-**Hooks**: useDashboard, useProjects, useSubjects, usePackages, useAssets (usePaginatedAssets via useInfiniteQuery), useTableSelection, useDebounce, useIngest
+**Hooks**: useDashboard, useProjects, useSubjects, usePackages, useAssets (usePaginatedAssets via useInfiniteQuery), useTableSelection, useDebounce, useIngest, useVersionCheck (polls /api/health for version mismatch), useSystemInfo (system info for sidebar)
 
 **Components**: AddPackageDialog (6-step ingest wizard: input→preview→datasets→confirm→ingesting→done, SSE progress), VirtualizedAssetGrid (@tanstack/react-virtual), PoseMatrix (Canvas yaw×pitch heatmap for VFX), PackageSummaryCard (VFX face stats / raw stats), GlobalSearch (debounced cross-entity), BulkActionBar (entity-agnostic bulk actions), SubjectChip, SectionSummary, SourceVideoLink, PackageIndicators, CopyCommandButton, AppSidebar
 
-**Services**: api.ts (fetch → /api proxy → :8000), ingest.ts (SSE stream), assets.ts, packages.ts, projects.ts, subjects.ts
+**Services**: api.ts (fetch → /api proxy → :8000), ingest.ts (SSE stream), assets.ts, packages.ts, projects.ts, subjects.ts, system.ts (system info)
 
 ErrorBoundary wraps all routes. `/media` proxy → :8000 (thumbs, proxies, video).

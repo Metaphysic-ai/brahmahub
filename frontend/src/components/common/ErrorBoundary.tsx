@@ -20,10 +20,21 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+
+    // Chunk load errors happen when the frontend has been redeployed and
+    // old JS chunk filenames no longer exist on disk. Auto-reload once.
+    if (isChunkLoadError(error) && !sessionStorage.getItem("chunk_reload")) {
+      sessionStorage.setItem("chunk_reload", "1");
+      window.location.reload();
+    }
   }
 
   render() {
     if (!this.state.hasError) return this.props.children;
+
+    // Clear the reload guard on successful render so future chunk errors
+    // can trigger another auto-reload.
+    sessionStorage.removeItem("chunk_reload");
 
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
@@ -41,4 +52,14 @@ export class ErrorBoundary extends Component<Props, State> {
       </div>
     );
   }
+}
+
+function isChunkLoadError(error: Error): boolean {
+  const msg = error.message || "";
+  return (
+    error.name === "ChunkLoadError" ||
+    msg.includes("Failed to fetch dynamically imported module") ||
+    msg.includes("Loading chunk") ||
+    msg.includes("Loading CSS chunk")
+  );
 }

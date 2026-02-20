@@ -326,3 +326,26 @@ export interface IngestExecuteResult {
   file_count: number;
   subjects_created: string[];
 }
+
+// -- System / Self-Update -----------------------------------------------------
+
+export interface ReleaseAssetInfo {
+  name: string;
+  size: number;
+  download_url: string;
+}
+
+export interface LatestRelease {
+  version: string;
+  tag_name: string;
+  published_at: string;
+  html_url: string;
+  assets: ReleaseAssetInfo[];
+}
+
+export interface SystemInfo {
+  version: string;
+  update_enabled: boolean;
+  latest: LatestRelease | null;
+  update_available: boolean;
+}

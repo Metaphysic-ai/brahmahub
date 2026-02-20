@@ -44,5 +44,16 @@ class Settings:
 
     datasets_root: str = os.environ.get("DATASETS_ROOT", "")
 
+    # Self-update settings (leave empty to disable)
+    update_repo: str = os.environ.get("UPDATE_REPO", "")
+
+    # GitHub App authentication (preferred — auto-rotating tokens, org-scoped)
+    github_app_id: str = os.environ.get("GITHUB_APP_ID", "")
+    github_private_key_path: str = os.environ.get("GITHUB_PRIVATE_KEY_PATH", "")
+    github_installation_id: str = os.environ.get("GITHUB_INSTALLATION_ID", "")
+
+    # Auto-update check interval in seconds (default 300 = 5 min, 0 = disabled)
+    auto_update_interval: int = int(os.environ.get("AUTO_UPDATE_INTERVAL", "300"))
+
 
 settings = Settings()

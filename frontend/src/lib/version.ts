@@ -92,3 +92,69 @@ export function isDevBuild(version: string = APP_VERSION): boolean {
   if (version === "dev" || version === "unknown") return true;
   return !parseGitDescribe(version).isRelease;
 }
+
+// ---------------------------------------------------------------------------
+// Version comparison (for update detection)
+// ---------------------------------------------------------------------------
+
+/** Extract semver tuple from a version string. Returns null if not parseable. */
+function parseSemver(v: string): [number, number, number] | null {
+  const m = v.replace(/^v/, "").match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return null;
+  return [Number.parseInt(m[1], 10), Number.parseInt(m[2], 10), Number.parseInt(m[3], 10)];
+}
+
+/** Compare two semver strings. Returns -1 if a < b, 0 if equal, 1 if a > b. */
+export function compareSemver(a: string, b: string): -1 | 0 | 1 {
+  const pa = parseSemver(a);
+  const pb = parseSemver(b);
+  if (!pa || !pb) return 0;
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] < pb[i]) return -1;
+    if (pa[i] > pb[i]) return 1;
+  }
+  return 0;
+}
+
+/** True if version `a` is strictly older than version `b`. */
+export function isOlderVersion(a: string, b: string): boolean {
+  return compareSemver(a, b) === -1;
+}
+
+/**
+ * Detect meaningful version mismatch between frontend build and backend.
+ * Skips comparison for dev/unknown builds and allows 10-commit drift for
+ * dev builds (git-describe format like v1.0.0-3-gabc1234).
+ */
+export function isVersionMismatch(backendVersion: string): boolean {
+  const fe = APP_VERSION;
+
+  // Skip if either side is unknown/dev
+  if (!fe || !backendVersion) return false;
+  if (fe === "dev" || fe === "unknown" || fe === "0.0.0-dev") return false;
+  if (backendVersion === "dev" || backendVersion === "unknown" || backendVersion === "0.0.0-dev") return false;
+
+  // Skip if frontend is a bare commit hash (no tag reachable in git describe)
+  if (!parseGitDescribe(fe).tag) return false;
+
+  // Skip if backend is a PEP 440 dev version (e.g. 0.0.1.dev13+g...)
+  if (/\.dev\d/.test(backendVersion)) return false;
+
+  // Exact match (including git-describe suffix)
+  if (fe === backendVersion) return false;
+
+  // Compare base semver
+  const feSemver = parseSemver(fe);
+  const beSemver = parseSemver(backendVersion);
+
+  // Can't compare non-semver strings meaningfully
+  if (!feSemver || !beSemver) return fe !== backendVersion;
+
+  // If base semver differs, it's a real mismatch
+  if (compareSemver(fe, backendVersion) !== 0) return true;
+
+  // Same base semver — check commit drift (v1.0.0-N-gHASH)
+  const feCommits = parseGitDescribe(fe).commits;
+  const beCommits = parseGitDescribe(backendVersion).commits;
+  return Math.abs(feCommits - beCommits) > 10;
+}

@@ -92,8 +92,7 @@ async def analyze_package(data: IngestAnalyzeRequest):
         raise HTTPException(status_code=400, detail=f"Path is not a directory: {data.source_path}")
 
     try:
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, analyze_path, data.source_path)
+        result = await asyncio.to_thread(analyze_path, data.source_path)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
@@ -109,7 +108,7 @@ async def get_dataset_dirs():
     root = settings.datasets_root
     if not root:
         return {"datasets_root": "", "dirs": []}
-    dirs = await asyncio.get_event_loop().run_in_executor(None, list_dataset_dirs, root)
+    dirs = await asyncio.to_thread(list_dataset_dirs, root)
     return {"datasets_root": root, "dirs": dirs}
 
 
@@ -949,8 +948,7 @@ async def execute_ingest_stream(data: IngestExecuteRequest):
                                     logger.warning("Failed to create dataset dir %s: %s", ds_dir, e)
 
                             try:
-                                result = await asyncio.get_event_loop().run_in_executor(
-                                    None,
+                                result = await asyncio.to_thread(
                                     create_dataset_symlinks,
                                     ds_dir,
                                     data.package_name,

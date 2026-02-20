@@ -269,7 +269,6 @@ async def backfill_face_metadata(package_id: UUID):
             total = len(rows)
             yield f"data: {_json.dumps({'status': 'started', 'total': total})}\n\n"
 
-            loop = asyncio.get_event_loop()
             updated = 0
             errors = 0
             batch_size = 200
@@ -285,7 +284,7 @@ async def backfill_face_metadata(package_id: UUID):
                     updates = []
                     for fut, row in futs:
                         try:
-                            meta = await loop.run_in_executor(None, fut.result, 30)
+                            meta = await asyncio.to_thread(fut.result, 30)
                             if meta:
                                 updates.append((row["id"], meta))
                         except Exception as e:

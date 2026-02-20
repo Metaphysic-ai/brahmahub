@@ -1,3 +1,9 @@
+## Linked Stories
+
+<!-- Link Shortcut stories: [SC-XXXXX](https://app.shortcut.com/metaphysicai/story/XXXXX) -->
+
+_None_
+
 ## What type of PR is this?
 
 - [ ] Feature

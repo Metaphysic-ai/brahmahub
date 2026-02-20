@@ -335,7 +335,9 @@ def list_subjects(project: str):
             sys.exit(1)
         project_id = row[0]
 
-        cur = conn.cursor(cursor_factory=__import__("psycopg2").extras.RealDictCursor)
+        import psycopg2.extras
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(
             "SELECT * FROM v_subject_summary WHERE project_id = %s ORDER BY name",
             (project_id,),
@@ -458,7 +460,7 @@ def status():
 # ── Helpers ─────────────────────────────────────────────────
 
 
-def _fmt_size(size_bytes: int) -> str:
+def _fmt_size(size_bytes: int | float) -> str:
     """Format bytes into human-readable size."""
     if not size_bytes:
         return "0 B"

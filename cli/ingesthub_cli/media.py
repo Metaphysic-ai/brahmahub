@@ -402,7 +402,7 @@ def generate_image_proxy(
                 img = img.convert("RGB")
 
             if max(img.size) > max_size:
-                img.thumbnail((max_size, max_size), Image.LANCZOS)
+                img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
 
             img.save(proxy_path, "JPEG", quality=quality, optimize=True)
             return proxy_path
@@ -432,7 +432,7 @@ def generate_image_thumbnail(
         with Image.open(source) as img:
             if img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
-            img.thumbnail((size, size), Image.LANCZOS)
+            img.thumbnail((size, size), Image.Resampling.LANCZOS)
             img.save(thumb_path, "JPEG", quality=quality)
             return thumb_path
 

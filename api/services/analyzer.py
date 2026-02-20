@@ -372,7 +372,7 @@ def _call_gemini(file_facts: dict) -> list[dict]:
                         max_output_tokens=16384,
                     ),
                 )
-                data = json.loads(response.text)
+                data = json.loads(response.text or "")
                 batch_manifest = data.get("manifest", [])
                 manifest.extend(batch_manifest)
                 logger.info("Batch %d/%d: %d mappings", batch_num, total_batches, len(batch_manifest))
@@ -446,7 +446,7 @@ def _validate_subject_assignments(manifest_lookup: dict, all_files: list) -> dic
     if total == 0:
         return manifest_lookup
 
-    top_subject = max(subject_counts, key=subject_counts.get)
+    top_subject = max(subject_counts, key=lambda k: subject_counts[k])
     if subject_counts[top_subject] / total <= 0.8:
         return manifest_lookup  # Distribution looks reasonable
 

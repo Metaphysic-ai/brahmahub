@@ -66,7 +66,7 @@ async def client(db_conn: asyncpg.Connection):
     import api.database as db_mod
 
     old_pool = db_mod.pool
-    db_mod.pool = _MockPool(db_conn)
+    db_mod.pool = _MockPool(db_conn)  # type: ignore[assignment]
 
     from api.main import app
 

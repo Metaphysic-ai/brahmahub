@@ -39,6 +39,8 @@ async def close_pool():
 @asynccontextmanager
 async def get_conn():
     """Yield a connection from the pool."""
+    if pool is None:
+        raise RuntimeError("Connection pool not initialized — call init_pool() first")
     async with pool.acquire() as conn:
         yield conn
 

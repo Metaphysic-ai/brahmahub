@@ -1,0 +1,209 @@
+# =============================================================================
+# Release
+# =============================================================================
+# Triggered on every push to main. release-please manages the release lifecycle:
+# opens/updates a Release PR, and on merge creates a git tag + GitHub Release.
+# git-cliff handles changelog formatting. Frontend dist is built and uploaded
+# as a release asset.
+#
+# Quality checks are enforced via branch protection on the Release PR (the CI
+# workflow validates every PR and push to main), so checks are not duplicated
+# here.
+# =============================================================================
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# Permissions set per-job (least privilege)
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # release-please: manage Release PR and create releases
+  # ---------------------------------------------------------------------------
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
+    steps:
+      - name: Generate GitHub App token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Run release-please
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
+        id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+
+  # ---------------------------------------------------------------------------
+  # update-changelog: add git-cliff changelog to the Release PR
+  # ---------------------------------------------------------------------------
+  update-changelog:
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true' && needs.release-please.outputs.release_created != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Generate GitHub App token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout Release PR branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: release-please--branches--main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@e16f179f0be49ecdfe63753837f20b9531642772 # v4
+        with:
+          config: cliff.toml
+          args: --bump -o CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Commit changelog if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --cached --quiet || git commit -m "docs: update changelog"
+          git push
+
+  # ---------------------------------------------------------------------------
+  # automerge: enable auto-merge on the Release PR (runs after changelog)
+  # ---------------------------------------------------------------------------
+  automerge:
+    needs: [release-please, update-changelog]
+    if: needs.release-please.outputs.prs_created == 'true' && needs.release-please.outputs.release_created != 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Generate GitHub App token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Enable auto-merge on Release PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_URL: ${{ needs.release-please.outputs.pr }}
+        run: |
+          if [ -n "$PR_URL" ]; then
+            gh pr merge "$PR_URL" --auto --merge
+          fi
+
+  # ---------------------------------------------------------------------------
+  # build-release: build frontend and publish GitHub Release assets
+  # ---------------------------------------------------------------------------
+  build-release:
+    name: Build & Publish
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on main branch
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          if ! git branch -r --contains "$COMMIT_SHA" | grep -q 'origin/main'; then
+            echo "::error::Release tags must be created from commits on the main branch"
+            exit 1
+          fi
+
+      # -- Release notes --
+      - name: Generate release notes
+        id: cliff
+        uses: orhun/git-cliff-action@e16f179f0be49ecdfe63753837f20b9531642772 # v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Build release notes file
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          REPO: ${{ github.repository }}
+          CLIFF_OUTPUT: ${{ steps.cliff.outputs.content }}
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || echo "")
+          {
+            echo "## BrahmaHub ${TAG}"
+            echo ""
+            echo "$CLIFF_OUTPUT"
+            if [ -n "$PREV_TAG" ]; then
+              echo "---"
+              echo "**Full Changelog**: https://github.com/${REPO}/compare/${PREV_TAG}...${TAG}"
+            fi
+          } > /tmp/release-notes.md
+
+      # -- Frontend --
+      - name: Set up pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm --prefix frontend install --frozen-lockfile
+
+      - name: Build frontend
+        env:
+          VITE_APP_VERSION: ${{ needs.release-please.outputs.tag_name }}
+          VITE_APP_COMMIT: ${{ github.sha }}
+        run: |
+          pnpm --prefix frontend build
+          tar -czvf frontend-dist.tar.gz -C frontend/dist .
+
+      # -- Publish --
+      - name: Update GitHub Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          body_path: /tmp/release-notes.md
+          files: frontend-dist.tar.gz
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

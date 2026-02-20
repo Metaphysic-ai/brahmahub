@@ -1,4 +1,4 @@
-import { formatBytes } from '@/lib/formatters';
+import { formatBytes } from "@/lib/formatters";
 
 interface SubjectStatsProps {
   videoCount: number;
@@ -14,8 +14,8 @@ export function SubjectStats({ videoCount, imageCount, totalSize, totalDuration,
   const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
   const statPills: string[] = [];
-  if (videoCount) statPills.push(`${videoCount} video${videoCount !== 1 ? 's' : ''}`);
-  if (imageCount) statPills.push(`${imageCount} image${imageCount !== 1 ? 's' : ''}`);
+  if (videoCount) statPills.push(`${videoCount} video${videoCount !== 1 ? "s" : ""}`);
+  if (imageCount) statPills.push(`${imageCount} image${imageCount !== 1 ? "s" : ""}`);
   if (totalDuration > 0) statPills.push(durationStr);
   if (pickedUpCount > 0) statPills.push(`${pickedUpCount} picked up`);
   statPills.push(formatBytes(totalSize));

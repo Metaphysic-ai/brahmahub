@@ -1,0 +1,150 @@
+# =============================================================================
+# Checks - Reusable Quality Gates
+# =============================================================================
+# Reusable workflow for lint, typecheck, and test.
+# Includes path filtering to skip irrelevant jobs (e.g., skip API tests on
+# frontend-only changes). The "gate" job provides a single required status
+# check that passes when all executed checks succeed (skipped jobs are OK).
+# =============================================================================
+
+name: Checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which paths changed to conditionally run downstream jobs
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - 'cli/**'
+              - 'tests/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'db/migrations/**'
+            frontend:
+              - 'frontend/**'
+
+  # ---------------------------------------------------------------------------
+  # API Lint + Typecheck
+  # ---------------------------------------------------------------------------
+  api-quality:
+    name: API lint + typecheck
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
+        with:
+          enable-cache: true
+          cache-dependency-path: uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run ty check
+
+  # ---------------------------------------------------------------------------
+  # API Tests
+  # ---------------------------------------------------------------------------
+  api-test:
+    name: API tests
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ingesthub
+          POSTGRES_USER: ingesthub
+          POSTGRES_PASSWORD: ingesthub_dev_2024
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ingesthub -d ingesthub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ingesthub:ingesthub_dev_2024@localhost:5432/ingesthub
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
+        with:
+          enable-cache: true
+          cache-dependency-path: uv.lock
+      - run: uv sync --frozen
+      - name: Apply migrations
+        run: |
+          for f in db/migrations/*.sql; do
+            psql "$DATABASE_URL" -f "$f"
+          done
+      - run: uv run pytest tests/ -v
+
+  # ---------------------------------------------------------------------------
+  # Frontend Lint + Typecheck + Test
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend lint + typecheck + test
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        with:
+          version: 10
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm biome check .
+      - run: pnpm tsc --noEmit
+      - run: pnpm test
+
+  # ---------------------------------------------------------------------------
+  # Gate: single required status check for branch protection
+  # ---------------------------------------------------------------------------
+  gate:
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs: [api-quality, api-test, frontend]
+    if: always()
+    steps:
+      - name: Verify no failures
+        env:
+          API_QUALITY: ${{ needs.api-quality.result }}
+          API_TEST: ${{ needs.api-test.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+        run: |
+          for result in "$API_QUALITY" "$API_TEST" "$FRONTEND"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::Check failed or was cancelled: $result"
+              exit 1
+            fi
+          done

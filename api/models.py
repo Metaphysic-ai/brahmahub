@@ -1,7 +1,6 @@
 """Pydantic models for API request/response validation."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -11,27 +10,27 @@ class ProjectCreate(BaseModel):
     name: str
     description: str = ""
     project_type: str = "atman"
-    client: Optional[str] = None
-    notes: Optional[str] = None
+    client: str | None = None
+    notes: str | None = None
     tags: list[str] = []
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    project_type: Optional[str] = None
-    client: Optional[str] = None
-    notes: Optional[str] = None
-    tags: Optional[list[str]] = None
+    name: str | None = None
+    description: str | None = None
+    project_type: str | None = None
+    client: str | None = None
+    notes: str | None = None
+    tags: list[str] | None = None
 
 
 class ProjectResponse(BaseModel):
     id: UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     project_type: str
-    client: Optional[str] = None
-    notes: Optional[str] = None
+    client: str | None = None
+    notes: str | None = None
     tags: list[str] = []
     created_at: datetime
     updated_at: datetime
@@ -45,25 +44,25 @@ class SubjectCreate(BaseModel):
     project_id: UUID
     name: str
     description: str = ""
-    notes: Optional[str] = None
+    notes: str | None = None
     tags: list[str] = []
 
 
 class SubjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    notes: Optional[str] = None
-    tags: Optional[list[str]] = None
+    name: str | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
+    notes: str | None = None
+    tags: list[str] | None = None
 
 
 class SubjectResponse(BaseModel):
     id: UUID
     project_id: UUID
     name: str
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    notes: Optional[str] = None
+    description: str | None = None
+    thumbnail_url: str | None = None
+    notes: str | None = None
     tags: list[str] = []
     created_at: datetime
     updated_at: datetime
@@ -76,18 +75,18 @@ class PackageCreate(BaseModel):
     subject_id: UUID
     name: str
     source_description: str = ""
-    disk_path: Optional[str] = None
+    disk_path: str | None = None
     tags: list[str] = []
     metadata: dict = {}
 
 
 class PackageUpdate(BaseModel):
-    name: Optional[str] = None
-    source_description: Optional[str] = None
-    status: Optional[str] = None
-    picked_up: Optional[bool] = None
-    tags: Optional[list[str]] = None
-    metadata: Optional[dict] = None
+    name: str | None = None
+    source_description: str | None = None
+    status: str | None = None
+    picked_up: bool | None = None
+    tags: list[str] | None = None
+    metadata: dict | None = None
 
 
 class LinkedSubject(BaseModel):
@@ -99,14 +98,14 @@ class PackageResponse(BaseModel):
     id: UUID
     subject_id: UUID
     name: str
-    source_description: Optional[str] = None
+    source_description: str | None = None
     ingested_at: datetime
     file_count: int = 0
     total_size_bytes: int = 0
     status: str = "ingested"
     package_type: str = "atman"
     picked_up: bool = False
-    disk_path: Optional[str] = None
+    disk_path: str | None = None
     tags: list[str] = []
     metadata: dict = {}
     linked_subjects: list[LinkedSubject] = []
@@ -125,29 +124,29 @@ class PackageSummary(BaseModel):
     metadata_count: int = 0
     picked_up_count: int = 0
     total_duration: float = 0.0
-    common_width: Optional[int] = None
-    common_height: Optional[int] = None
-    face_types: Optional[list[str]] = None
-    source_width: Optional[int] = None
-    source_height: Optional[int] = None
-    yaw_min: Optional[float] = None
-    yaw_max: Optional[float] = None
-    pitch_min: Optional[float] = None
-    pitch_max: Optional[float] = None
-    avg_sharpness: Optional[float] = None
-    cameras: Optional[list[str]] = None
-    codecs: Optional[list[str]] = None
-    source_video_path: Optional[str] = None
-    source_video_filename: Optional[str] = None
-    grid_asset_id: Optional[str] = None
-    pose_data: Optional[list[dict]] = None
+    common_width: int | None = None
+    common_height: int | None = None
+    face_types: list[str] | None = None
+    source_width: int | None = None
+    source_height: int | None = None
+    yaw_min: float | None = None
+    yaw_max: float | None = None
+    pitch_min: float | None = None
+    pitch_max: float | None = None
+    avg_sharpness: float | None = None
+    cameras: list[str] | None = None
+    codecs: list[str] | None = None
+    source_video_path: str | None = None
+    source_video_filename: str | None = None
+    grid_asset_id: str | None = None
+    pose_data: list[dict] | None = None
 
 
 class AssetUpdate(BaseModel):
-    tags: Optional[list[str]] = None
-    review_status: Optional[str] = None
-    picked_up: Optional[bool] = None
-    is_on_disk: Optional[bool] = None
+    tags: list[str] | None = None
+    review_status: str | None = None
+    picked_up: bool | None = None
+    is_on_disk: bool | None = None
 
 
 class BulkAssetUpdate(BaseModel):
@@ -181,22 +180,22 @@ class PaginatedAssetResponse(BaseModel):
 class AssetResponse(BaseModel):
     id: UUID
     package_id: UUID
-    subject_id: Optional[UUID] = None
+    subject_id: UUID | None = None
     filename: str
     file_type: str
     asset_type: str = "raw"
-    mime_type: Optional[str] = None
-    file_size_bytes: Optional[int] = None
+    mime_type: str | None = None
+    file_size_bytes: int | None = None
     disk_path: str
-    proxy_path: Optional[str] = None
-    thumbnail_path: Optional[str] = None
-    proxy_url: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
-    duration_seconds: Optional[float] = None
-    codec: Optional[str] = None
-    camera: Optional[str] = None
+    proxy_path: str | None = None
+    thumbnail_path: str | None = None
+    proxy_url: str | None = None
+    thumbnail_url: str | None = None
+    width: int | None = None
+    height: int | None = None
+    duration_seconds: float | None = None
+    codec: str | None = None
+    camera: str | None = None
     review_status: str = "unreviewed"
     is_on_disk: bool = True
     picked_up: bool = False

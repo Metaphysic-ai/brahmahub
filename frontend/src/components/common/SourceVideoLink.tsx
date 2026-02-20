@@ -1,6 +1,6 @@
-import { Film } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useAssetByPath } from '@/hooks/useAssets';
+import { Film } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAssetByPath } from "@/hooks/useAssets";
 
 interface SourceVideoLinkProps {
   sourcePath?: string | null;

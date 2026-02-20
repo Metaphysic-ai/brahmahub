@@ -1,7 +1,6 @@
 """Dataset directory matching and symlink creation."""
 
 import logging
-import os
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -18,11 +17,7 @@ def list_dataset_dirs(datasets_root: str) -> list[str]:
     root = Path(datasets_root)
     if not root.is_dir():
         return []
-    return sorted(
-        entry.name
-        for entry in root.iterdir()
-        if entry.is_dir()
-    )
+    return sorted(entry.name for entry in root.iterdir() if entry.is_dir())
 
 
 def fuzzy_match_dataset(
@@ -104,16 +99,24 @@ def create_dataset_symlinks(
     skipped = 0
     errors: list[str] = []
 
-    base = Path(dataset_dir) / "media" / "external" / "from_client" / package_name
+    # Sanitize path components to prevent directory traversal
+    safe_pkg = Path(package_name).name
+    base = Path(dataset_dir).resolve() / "media" / "external" / "from_client" / safe_pkg
 
     for asset in assets:
         src = Path(asset["original_path"])
         ext = src.suffix.lower()
 
         media_type = "audio" if (asset.get("file_type") == "audio" or ext in _AUDIO_EXTS) else "visuals"
-        asset_type = asset.get("asset_type", "raw")
+        safe_asset_type = Path(asset.get("asset_type", "raw")).name
 
-        target = base / media_type / asset_type / src.name
+        target = base / media_type / safe_asset_type / src.name
+        # Ensure target stays within the dataset directory
+        try:
+            target.parent.resolve().relative_to(base.resolve())
+        except ValueError:
+            errors.append(f"{src.name}: path escapes dataset directory")
+            continue
 
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +128,7 @@ def create_dataset_symlinks(
                 # Different target — remove stale link
                 target.unlink()
 
-            os.symlink(str(src), str(target))
+            target.symlink_to(src)
             created += 1
 
         except Exception as e:
@@ -135,6 +138,10 @@ def create_dataset_symlinks(
 
     logger.info(
         "Dataset symlinks for %s/%s: created=%d skipped=%d errors=%d",
-        Path(dataset_dir).name, package_name, created, skipped, len(errors),
+        Path(dataset_dir).name,
+        package_name,
+        created,
+        skipped,
+        len(errors),
     )
     return {"created": created, "skipped": skipped, "errors": errors}

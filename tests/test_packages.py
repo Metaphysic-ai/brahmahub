@@ -62,9 +62,12 @@ async def test_get_package_not_found(client: AsyncClient):
 
 async def test_update_package(client: AsyncClient, seed_package: dict):
     pid = str(seed_package["id"])
-    resp = await client.put(f"/api/packages/{pid}", json={
-        "name": "renamed-pkg",
-    })
+    resp = await client.put(
+        f"/api/packages/{pid}",
+        json={
+            "name": "renamed-pkg",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["name"] == "renamed-pkg"
 

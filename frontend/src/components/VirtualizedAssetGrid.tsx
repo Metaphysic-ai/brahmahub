@@ -1,7 +1,7 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { Asset } from '@/types';
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Asset } from "@/types";
 
 interface VirtualizedAssetGridProps {
   assets: Asset[];
@@ -76,7 +76,7 @@ export function VirtualizedAssetGrid({
     if (containerWidth > 0) {
       virtualizer.measure();
     }
-  }, [containerWidth, colCount, virtualizer]);
+  }, [containerWidth, virtualizer]);
 
   const virtualItems = virtualizer.getVirtualItems();
   useEffect(() => {
@@ -90,16 +90,12 @@ export function VirtualizedAssetGrid({
   const showCheckbox = selectedAssetIds.size > 0;
 
   return (
-    <div
-      ref={scrollRef}
-      className="overflow-y-auto"
-      style={{ height: 'calc(100vh - 280px)', minHeight: 300 }}
-    >
+    <div ref={scrollRef} className="overflow-y-auto" style={{ height: "calc(100vh - 280px)", minHeight: 300 }}>
       <div
         style={{
           height: virtualizer.getTotalSize(),
-          width: '100%',
-          position: 'relative',
+          width: "100%",
+          position: "relative",
         }}
       >
         {virtualItems.map((virtualRow) => {
@@ -109,10 +105,10 @@ export function VirtualizedAssetGrid({
               key={virtualRow.index}
               className={`grid ${gridClassName} gap-3`}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: 0,
                 left: 0,
-                width: '100%',
+                width: "100%",
                 height: virtualRow.size,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
@@ -152,9 +148,7 @@ export function VirtualizedAssetGrid({
         </p>
       )}
       {assets.length >= totalCount && assets.length > 0 && (
-        <p className="text-center text-xs text-muted-foreground/50 py-4">
-          {totalCount.toLocaleString()} assets
-        </p>
+        <p className="text-center text-xs text-muted-foreground/50 py-4">{totalCount.toLocaleString()} assets</p>
       )}
     </div>
   );

@@ -5,7 +5,6 @@ import logging
 import mimetypes
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 
@@ -13,21 +12,60 @@ console = Console()
 logger = logging.getLogger(__name__)
 
 VIDEO_EXTENSIONS = {
-    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm",
-    ".m4v", ".mpg", ".mpeg", ".mxf", ".ts", ".mts", ".m2ts",
-    ".3gp", ".ogv", ".r3d",  # RED raw
+    ".mp4",
+    ".mov",
+    ".avi",
+    ".mkv",
+    ".wmv",
+    ".flv",
+    ".webm",
+    ".m4v",
+    ".mpg",
+    ".mpeg",
+    ".mxf",
+    ".ts",
+    ".mts",
+    ".m2ts",
+    ".3gp",
+    ".ogv",
+    ".r3d",  # RED raw
 }
 
 IMAGE_EXTENSIONS = {
-    ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".webp",
-    ".exr", ".dpx", ".hdr", ".gif", ".heic", ".heif", ".raw",
-    ".cr2", ".cr3", ".nef", ".arw", ".dng",  # RAW camera formats
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".tiff",
+    ".tif",
+    ".bmp",
+    ".webp",
+    ".exr",
+    ".dpx",
+    ".hdr",
+    ".gif",
+    ".heic",
+    ".heif",
+    ".raw",
+    ".cr2",
+    ".cr3",
+    ".nef",
+    ".arw",
+    ".dng",  # RAW camera formats
 }
 
 # Codecs that browsers can't play natively → need proxy
 NON_WEB_VIDEO_CODECS = {
-    "prores", "dnxhd", "dnxhr", "cfhd", "v210", "rawvideo",
-    "ffv1", "huffyuv", "mjpeg", "mpeg2video", "r210",
+    "prores",
+    "dnxhd",
+    "dnxhr",
+    "cfhd",
+    "v210",
+    "rawvideo",
+    "ffv1",
+    "huffyuv",
+    "mjpeg",
+    "mpeg2video",
+    "r210",
 }
 
 
@@ -41,21 +79,22 @@ def classify_file(path: Path) -> str:
     return "other"
 
 
-def get_mime_type(path: Path) -> Optional[str]:
+def get_mime_type(path: Path) -> str | None:
     """Get MIME type for a file."""
     mime, _ = mimetypes.guess_type(str(path))
     return mime
 
 
-
-def _run_ffprobe(filepath: str) -> Optional[dict]:
+def _run_ffprobe(filepath: str) -> dict | None:
     """Run ffprobe and return parsed JSON output."""
     try:
         result = subprocess.run(
             [
                 "ffprobe",
-                "-v", "quiet",
-                "-print_format", "json",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
                 "-show_format",
                 "-show_streams",
                 str(filepath),
@@ -76,8 +115,11 @@ def probe_video(filepath: Path) -> dict:
     info = _run_ffprobe(str(filepath))
     if not info:
         return {
-            "width": None, "height": None, "duration_seconds": None,
-            "codec": None, "metadata": {},
+            "width": None,
+            "height": None,
+            "duration_seconds": None,
+            "codec": None,
+            "metadata": {},
         }
 
     video_stream = None
@@ -131,8 +173,12 @@ def probe_audio(filepath: Path) -> dict:
     info = _run_ffprobe(str(filepath))
     if not info:
         return {
-            "width": None, "height": None, "duration_seconds": None,
-            "codec": None, "camera": None, "metadata": {},
+            "width": None,
+            "height": None,
+            "duration_seconds": None,
+            "codec": None,
+            "camera": None,
+            "metadata": {},
         }
 
     audio_stream = None
@@ -202,12 +248,16 @@ def probe_image(filepath: Path) -> dict:
     except Exception as e:
         console.print(f"  [yellow]⚠ Could not probe image {filepath.name}: {e}[/]")
         return {
-            "width": None, "height": None, "duration_seconds": None,
-            "codec": None, "camera": None, "metadata": {},
+            "width": None,
+            "height": None,
+            "duration_seconds": None,
+            "codec": None,
+            "camera": None,
+            "metadata": {},
         }
 
 
-def _parse_fps(fps_str: str) -> Optional[float]:
+def _parse_fps(fps_str: str) -> float | None:
     """Parse fractional FPS string like '24000/1001'."""
     if not fps_str:
         return None
@@ -220,13 +270,12 @@ def _parse_fps(fps_str: str) -> Optional[float]:
         return None
 
 
-
 def generate_video_proxy(
     source: Path,
     output_dir: Path,
     max_height: int = 720,
     crf: int = 23,
-) -> Optional[Path]:
+) -> Path | None:
     """Generate a web-playable MP4 proxy from a video file.
 
     Returns the path to the proxy file, or None on failure.
@@ -240,28 +289,33 @@ def generate_video_proxy(
 
     try:
         # Scale to max_height, keep aspect ratio, ensure even dimensions
-        scale_filter = (
-            f"scale=-2:'min({max_height},ih)':flags=lanczos,"
-            "pad=ceil(iw/2)*2:ceil(ih/2)*2"
-        )
+        scale_filter = f"scale=-2:'min({max_height},ih)':flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2"
 
         cmd = [
-            "ffmpeg", "-y",
-            "-i", str(source),
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", str(crf),
-            "-vf", scale_filter,
-            "-c:a", "aac",
-            "-b:a", "128k",
-            "-movflags", "+faststart",
-            "-pix_fmt", "yuv420p",
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(source),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            str(crf),
+            "-vf",
+            scale_filter,
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-movflags",
+            "+faststart",
+            "-pix_fmt",
+            "yuv420p",
             str(proxy_path),
         ]
 
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=600
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
         if result.returncode != 0:
             console.print(f"  [red]✗ Proxy generation failed for {source.name}[/]")
@@ -283,7 +337,7 @@ def generate_video_thumbnail(
     output_dir: Path,
     timestamp: str = "00:00:01",
     size: str = "480:-2",
-) -> Optional[Path]:
+) -> Path | None:
     """Extract a single frame as a JPEG thumbnail from a video."""
     output_dir.mkdir(parents=True, exist_ok=True)
     thumb_name = f"{source.stem}_thumb.jpg"
@@ -294,18 +348,28 @@ def generate_video_thumbnail(
 
     try:
         cmd = [
-            "ffmpeg", "-y",
-            "-ss", timestamp,
-            "-i", str(source),
-            "-vframes", "1",
-            "-vf", f"scale={size}",
-            "-q:v", "2",
+            "ffmpeg",
+            "-y",
+            "-ss",
+            timestamp,
+            "-i",
+            str(source),
+            "-vframes",
+            "1",
+            "-vf",
+            f"scale={size}",
+            "-q:v",
+            "2",
             str(thumb_path),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
         if result.returncode != 0 or not thumb_path.exists():
-            logger.warning("Video thumbnail failed for %s: %s", source.name, result.stderr[-500:] if result.stderr else "unknown error")
+            logger.warning(
+                "Video thumbnail failed for %s: %s",
+                source.name,
+                result.stderr[-500:] if result.stderr else "unknown error",
+            )
             return None
         return thumb_path
 
@@ -321,7 +385,7 @@ def generate_image_proxy(
     output_dir: Path,
     max_size: int = 1920,
     quality: int = 85,
-) -> Optional[Path]:
+) -> Path | None:
     """Generate a web-sized JPEG proxy from an image."""
     output_dir.mkdir(parents=True, exist_ok=True)
     proxy_name = f"{source.stem}_proxy.jpg"
@@ -338,7 +402,7 @@ def generate_image_proxy(
                 img = img.convert("RGB")
 
             if max(img.size) > max_size:
-                img.thumbnail((max_size, max_size), Image.LANCZOS)
+                img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
 
             img.save(proxy_path, "JPEG", quality=quality, optimize=True)
             return proxy_path
@@ -353,7 +417,7 @@ def generate_image_thumbnail(
     output_dir: Path,
     size: int = 480,
     quality: int = 80,
-) -> Optional[Path]:
+) -> Path | None:
     """Generate a small JPEG thumbnail from an image."""
     output_dir.mkdir(parents=True, exist_ok=True)
     thumb_name = f"{source.stem}_thumb.jpg"
@@ -368,7 +432,7 @@ def generate_image_thumbnail(
         with Image.open(source) as img:
             if img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
-            img.thumbnail((size, size), Image.LANCZOS)
+            img.thumbnail((size, size), Image.Resampling.LANCZOS)
             img.save(thumb_path, "JPEG", quality=quality)
             return thumb_path
 

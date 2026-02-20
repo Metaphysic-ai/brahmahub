@@ -1,0 +1,26 @@
+api:
+  - changed-files:
+    - any-glob-to-any-file: 'api/**'
+
+frontend:
+  - changed-files:
+    - any-glob-to-any-file: 'frontend/**'
+
+cli:
+  - changed-files:
+    - any-glob-to-any-file: 'cli/**'
+
+database:
+  - changed-files:
+    - any-glob-to-any-file: 'db/migrations/**'
+
+deploy:
+  - changed-files:
+    - any-glob-to-any-file: 'deploy/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+      - 'lefthook.yml'
+      - 'mise.toml'

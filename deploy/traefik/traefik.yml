@@ -1,0 +1,42 @@
+# Traefik Static Configuration
+# Copy to /etc/traefik/traefik.yml
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+# Let's Encrypt with Route53 DNS challenge
+# Note: email is passed via CLI in systemd service (env vars don't work in YAML)
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      storage: /var/lib/traefik/acme.json
+      dnsChallenge:
+        provider: route53
+        delayBeforeCheck: 10s
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+
+api:
+  dashboard: false
+  insecure: false
+
+log:
+  level: INFO
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+  bufferingSize: 100

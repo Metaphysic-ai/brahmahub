@@ -51,9 +51,12 @@ async def test_get_asset_not_found(client: AsyncClient):
 
 async def test_update_asset(client: AsyncClient, seed_asset: dict):
     aid = str(seed_asset["id"])
-    resp = await client.put(f"/api/assets/{aid}", json={
-        "review_status": "approved",
-    })
+    resp = await client.put(
+        f"/api/assets/{aid}",
+        json={
+            "review_status": "approved",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["review_status"] == "approved"
 
@@ -68,9 +71,12 @@ async def test_delete_asset(client: AsyncClient, seed_asset: dict):
 
 
 async def test_lookup_by_path(client: AsyncClient, seed_asset: dict):
-    resp = await client.get("/api/assets/lookup-by-path", params={
-        "disk_path": "/tmp/test/frame_0001.png",
-    })
+    resp = await client.get(
+        "/api/assets/lookup-by-path",
+        params={
+            "disk_path": "/tmp/test/frame_0001.png",
+        },
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body is not None
@@ -78,8 +84,11 @@ async def test_lookup_by_path(client: AsyncClient, seed_asset: dict):
 
 
 async def test_lookup_by_path_not_found(client: AsyncClient):
-    resp = await client.get("/api/assets/lookup-by-path", params={
-        "disk_path": "/nonexistent/path.png",
-    })
+    resp = await client.get(
+        "/api/assets/lookup-by-path",
+        params={
+            "disk_path": "/nonexistent/path.png",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json() is None

@@ -1,11 +1,10 @@
 """Project endpoints."""
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 
-from ..database import get_conn, build_update
+from ..database import build_update, get_conn
 from ..models import BulkDeleteRequest, ProjectCreate, ProjectResponse, ProjectUpdate
 
 router = APIRouter()
@@ -34,8 +33,12 @@ async def create_project(data: ProjectCreate):
             """INSERT INTO projects (name, description, project_type, client, notes, tags)
                VALUES ($1, $2, $3, $4, $5, $6)
                RETURNING id""",
-            data.name, data.description, data.project_type,
-            data.client, data.notes, data.tags,
+            data.name,
+            data.description,
+            data.project_type,
+            data.client,
+            data.notes,
+            data.tags,
         )
         project_id = row["id"]
         result = await conn.fetchrow("SELECT * FROM v_project_summary WHERE id = $1", project_id)
@@ -70,8 +73,7 @@ async def bulk_delete_projects(data: BulkDeleteRequest):
     if not data.ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
     async with get_conn() as conn:
-        result = await conn.execute(
-            "DELETE FROM projects WHERE id = ANY($1::uuid[])", data.ids)
+        result = await conn.execute("DELETE FROM projects WHERE id = ANY($1::uuid[])", data.ids)
         deleted_count = int(result.split()[-1])
         return {"deleted": deleted_count}
 
@@ -89,7 +91,7 @@ async def list_project_subjects(project_id: UUID):
 @router.get("/{project_id}/packages")
 async def list_project_packages(
     project_id: UUID,
-    package_type: Optional[str] = Query(None),
+    package_type: str | None = Query(None),
 ):
     async with get_conn() as conn:
         base_sql = """SELECT DISTINCT ON (p.id) p.*, s.name AS subject_name

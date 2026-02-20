@@ -3,7 +3,6 @@
 import os
 import uuid
 from contextlib import contextmanager
-from typing import Optional
 
 import psycopg2
 import psycopg2.extras
@@ -47,9 +46,7 @@ def get_db():
 # ── Projects ────────────────────────────────────────────────
 
 
-def get_or_create_project(
-    conn, name: str, description: str = "", project_type: str = "atman"
-) -> uuid.UUID:
+def get_or_create_project(conn, name: str, description: str = "", project_type: str = "atman") -> uuid.UUID:
     """Get existing project by name or create a new one. Returns project ID."""
     cur = conn.cursor()
 
@@ -79,9 +76,7 @@ def list_projects(conn) -> list[dict]:
 # ── Subjects ────────────────────────────────────────────────
 
 
-def get_or_create_subject(
-    conn, project_id: uuid.UUID, name: str, description: str = ""
-) -> uuid.UUID:
+def get_or_create_subject(conn, project_id: uuid.UUID, name: str, description: str = "") -> uuid.UUID:
     """Get existing subject or create a new one. Returns subject ID."""
     cur = conn.cursor()
 
@@ -122,8 +117,8 @@ def create_package(
     name: str,
     disk_path: str,
     source_description: str = "",
-    tags: Optional[list] = None,
-    metadata: Optional[dict] = None,
+    tags: list | None = None,
+    metadata: dict | None = None,
 ) -> uuid.UUID:
     """Create a new ingest package. Returns package ID."""
     cur = conn.cursor()
@@ -159,9 +154,7 @@ def create_package(
     return package_id
 
 
-def update_package_stats(
-    conn, package_id: uuid.UUID, file_count: int, total_size: int, status: str = "ready"
-):
+def update_package_stats(conn, package_id: uuid.UUID, file_count: int, total_size: int, status: str = "ready"):
     """Update package after all assets are ingested."""
     cur = conn.cursor()
     cur.execute(

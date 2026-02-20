@@ -1,13 +1,23 @@
-import { useState, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
-import { AppSidebar } from './AppSidebar';
-import { AppBreadcrumb } from './AppBreadcrumb';
-import { GlobalSearch } from '@/components/GlobalSearch';
+import { useCallback, useEffect, useState } from "react";
+import { Outlet } from "react-router-dom";
+import { VersionBanner } from "@/components/common/VersionBanner";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { AppBreadcrumb } from "./AppBreadcrumb";
+import { AppSidebar } from "./AppSidebar";
 
 export function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const handleOpenSearch = useCallback(() => setSearchOpen(true), []);
+
+  // Strip cache-busting ?_v= param after version-banner reload
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("_v")) {
+      url.searchParams.delete("_v");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+  }, []);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -21,6 +31,7 @@ export function AppLayout() {
         </main>
       </div>
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <VersionBanner />
     </div>
   );
 }

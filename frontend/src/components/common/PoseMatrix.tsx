@@ -1,10 +1,10 @@
-import { useRef, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 const BIN_SIZE = 10;
 const COLS = 18; // -90 to 80 in steps of 10
 const ROWS = 18; // -90 to 80 in steps of 10
 const YAW_MIN = -90;
-const PITCH_MIN = -90;
+const _PITCH_MIN = -90;
 const PITCH_MAX = 80; // top row = 80..90
 const LABEL_W = 36; // left margin for pitch labels
 const LABEL_H = 20; // bottom margin for yaw labels
@@ -36,90 +36,93 @@ export function PoseMatrix({ poseData, selectedBins, onSelectionChange, classNam
     return { bins: m, maxCount: mc };
   }, [poseData]);
 
-  const draw = useCallback((canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const draw = useCallback(
+    (canvas: HTMLCanvasElement) => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const containerWidth = containerRef.current?.clientWidth ?? 600;
-    const cellW = Math.min(28, Math.max(12, Math.floor((containerWidth - LABEL_W) / COLS)));
-    const cellH = cellW; // square cells
-    const w = COLS * cellW + LABEL_W;
-    const h = ROWS * cellH + LABEL_H;
+      const dpr = window.devicePixelRatio || 1;
+      const containerWidth = containerRef.current?.clientWidth ?? 600;
+      const cellW = Math.min(28, Math.max(12, Math.floor((containerWidth - LABEL_W) / COLS)));
+      const cellH = cellW; // square cells
+      const w = COLS * cellW + LABEL_W;
+      const h = ROWS * cellH + LABEL_H;
 
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-    ctx.scale(dpr, dpr);
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = '#0a0a0f';
-    ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#0a0a0f";
+      ctx.fillRect(0, 0, w, h);
 
-    const hasSelection = selectedBins.size > 0;
-    const logMax = Math.log(maxCount + 1);
+      const hasSelection = selectedBins.size > 0;
+      const logMax = Math.log(maxCount + 1);
 
-    for (let col = 0; col < COLS; col++) {
-      for (let row = 0; row < ROWS; row++) {
-        const yaw = YAW_MIN + col * BIN_SIZE;
-        const pitch = PITCH_MAX - row * BIN_SIZE; // top = high pitch
-        const key = `${yaw}:${pitch}`;
-        const count = bins.get(key);
-        const x = LABEL_W + col * cellW;
-        const y = row * cellH;
+      for (let col = 0; col < COLS; col++) {
+        for (let row = 0; row < ROWS; row++) {
+          const yaw = YAW_MIN + col * BIN_SIZE;
+          const pitch = PITCH_MAX - row * BIN_SIZE; // top = high pitch
+          const key = `${yaw}:${pitch}`;
+          const count = bins.get(key);
+          const x = LABEL_W + col * cellW;
+          const y = row * cellH;
 
-        if (count) {
-          const norm = Math.log(count + 1) / logMax;
-          // Purple (270°) → Cyan (180°), lightness 15% → 75%
-          const hue = 270 - norm * 90;
-          const lightness = 15 + norm * 60;
-          const dimmed = hasSelection && !selectedBins.has(key);
+          if (count) {
+            const norm = Math.log(count + 1) / logMax;
+            // Purple (270°) → Cyan (180°), lightness 15% → 75%
+            const hue = 270 - norm * 90;
+            const lightness = 15 + norm * 60;
+            const dimmed = hasSelection && !selectedBins.has(key);
 
-          ctx.fillStyle = `hsl(${hue}, 70%, ${lightness}%)`;
-          ctx.globalAlpha = dimmed ? 0.3 : 1;
-          ctx.fillRect(x, y, cellW, cellH);
-          ctx.globalAlpha = 1;
+            ctx.fillStyle = `hsl(${hue}, 70%, ${lightness}%)`;
+            ctx.globalAlpha = dimmed ? 0.3 : 1;
+            ctx.fillRect(x, y, cellW, cellH);
+            ctx.globalAlpha = 1;
 
-          if (cellW >= 16) {
-            ctx.fillStyle = dimmed ? 'rgba(255,255,255,0.3)' : '#fff';
-            ctx.font = `${count >= 1000 ? 7 : cellW <= 18 ? 8 : 9}px system-ui, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(count), x + cellW / 2, y + cellH / 2);
+            if (cellW >= 16) {
+              ctx.fillStyle = dimmed ? "rgba(255,255,255,0.3)" : "#fff";
+              ctx.font = `${count >= 1000 ? 7 : cellW <= 18 ? 8 : 9}px system-ui, sans-serif`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(String(count), x + cellW / 2, y + cellH / 2);
+            }
+
+            if (selectedBins.has(key)) {
+              ctx.strokeStyle = "#fff";
+              ctx.lineWidth = 2;
+              ctx.strokeRect(x + 1, y + 1, cellW - 2, cellH - 2);
+            }
           }
 
-          if (selectedBins.has(key)) {
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x + 1, y + 1, cellW - 2, cellH - 2);
-          }
+          ctx.strokeStyle = "rgba(255,255,255,0.06)";
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(x, y, cellW, cellH);
         }
-
-        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x, y, cellW, cellH);
       }
-    }
 
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '9px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.font = "9px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
 
-    for (let col = 0; col <= COLS; col += 3) {
-      const yaw = YAW_MIN + col * BIN_SIZE;
-      const x = LABEL_W + col * cellW;
-      ctx.fillText(`${yaw}°`, x, ROWS * cellH + 4);
-    }
+      for (let col = 0; col <= COLS; col += 3) {
+        const yaw = YAW_MIN + col * BIN_SIZE;
+        const x = LABEL_W + col * cellW;
+        ctx.fillText(`${yaw}°`, x, ROWS * cellH + 4);
+      }
 
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (let row = 0; row < ROWS; row += 3) {
-      const pitch = PITCH_MAX - row * BIN_SIZE;
-      const y = row * cellH + cellH / 2;
-      ctx.fillText(`${pitch}°`, LABEL_W - 4, y);
-    }
-  }, [bins, maxCount, selectedBins]);
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let row = 0; row < ROWS; row += 3) {
+        const pitch = PITCH_MAX - row * BIN_SIZE;
+        const y = row * cellH + cellH / 2;
+        ctx.fillText(`${pitch}°`, LABEL_W - 4, y);
+      }
+    },
+    [bins, maxCount, selectedBins],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -136,44 +139,47 @@ export function PoseMatrix({ poseData, selectedBins, onSelectionChange, classNam
     return () => ro.disconnect();
   }, [draw]);
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / (window.devicePixelRatio || 1) / rect.width;
-    const scaleY = canvas.height / (window.devicePixelRatio || 1) / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX;
-    const my = (e.clientY - rect.top) * scaleY;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / (window.devicePixelRatio || 1) / rect.width;
+      const scaleY = canvas.height / (window.devicePixelRatio || 1) / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top) * scaleY;
 
-    const containerWidth = containerRef.current?.clientWidth ?? 600;
-    const cellW = Math.min(28, Math.max(12, Math.floor((containerWidth - LABEL_W) / COLS)));
-    const cellH = cellW;
+      const containerWidth = containerRef.current?.clientWidth ?? 600;
+      const cellW = Math.min(28, Math.max(12, Math.floor((containerWidth - LABEL_W) / COLS)));
+      const cellH = cellW;
 
-    const gridX = mx - LABEL_W;
-    const gridY = my;
+      const gridX = mx - LABEL_W;
+      const gridY = my;
 
-    if (gridX < 0 || gridX >= COLS * cellW || gridY < 0 || gridY >= ROWS * cellH) {
-      if (selectedBins.size > 0) onSelectionChange(new Set());
-      return;
-    }
+      if (gridX < 0 || gridX >= COLS * cellW || gridY < 0 || gridY >= ROWS * cellH) {
+        if (selectedBins.size > 0) onSelectionChange(new Set());
+        return;
+      }
 
-    const col = Math.floor(gridX / cellW);
-    const row = Math.floor(gridY / cellH);
-    const yaw = YAW_MIN + col * BIN_SIZE;
-    const pitch = PITCH_MAX - row * BIN_SIZE;
-    const key = `${yaw}:${pitch}`;
+      const col = Math.floor(gridX / cellW);
+      const row = Math.floor(gridY / cellH);
+      const yaw = YAW_MIN + col * BIN_SIZE;
+      const pitch = PITCH_MAX - row * BIN_SIZE;
+      const key = `${yaw}:${pitch}`;
 
-    if (!bins.has(key)) return;
+      if (!bins.has(key)) return;
 
-    const next = new Set(selectedBins);
-    if (next.has(key)) {
-      next.delete(key);
-    } else {
-      next.add(key);
-    }
-    onSelectionChange(next);
-  }, [bins, selectedBins, onSelectionChange]);
+      const next = new Set(selectedBins);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      onSelectionChange(next);
+    },
+    [bins, selectedBins, onSelectionChange],
+  );
 
   return (
     <div ref={containerRef} className={className}>
@@ -181,7 +187,7 @@ export function PoseMatrix({ poseData, selectedBins, onSelectionChange, classNam
         ref={canvasRef}
         onClick={handleClick}
         className="cursor-pointer rounded"
-        style={{ display: 'block', maxWidth: '100%' }}
+        style={{ display: "block", maxWidth: "100%" }}
       />
     </div>
   );

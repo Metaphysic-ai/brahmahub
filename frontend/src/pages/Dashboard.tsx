@@ -1,29 +1,29 @@
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Database as DatabaseIcon, Users, Package, FileVideo, HardDrive } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { StatusBadge } from '@/components/common/StatusBadge';
-import { PackageIndicators } from '@/components/common/PackageIndicators';
-import { BulkActionBar } from '@/components/common/BulkActionBar';
-import { useDashboardStats, useRecentIngests, useStorageByProject } from '@/hooks/useDashboard';
-import { useBulkDeletePackages } from '@/hooks/usePackages';
-import { useTableSelection } from '@/hooks/useTableSelection';
-import { useToast } from '@/hooks/use-toast';
-import { formatBytes, relativeTime, formatFullDate, pluralize } from '@/lib/formatters';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, Label } from 'recharts';
+import { Database as DatabaseIcon, FileVideo, HardDrive, Package, Users } from "lucide-react";
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Cell, Label, Pie, PieChart, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { BulkActionBar } from "@/components/common/BulkActionBar";
+import { PackageIndicators } from "@/components/common/PackageIndicators";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import { useDashboardStats, useRecentIngests, useStorageByProject } from "@/hooks/useDashboard";
+import { useBulkDeletePackages } from "@/hooks/usePackages";
+import { useTableSelection } from "@/hooks/useTableSelection";
+import { formatBytes, formatFullDate, pluralize, relativeTime } from "@/lib/formatters";
 
-const CHART_COLORS = ['hsl(213,60%,50%)', 'hsl(38,80%,55%)', 'hsl(142,55%,45%)', 'hsl(280,50%,55%)'];
+const CHART_COLORS = ["hsl(213,60%,50%)", "hsl(38,80%,55%)", "hsl(142,55%,45%)", "hsl(280,50%,55%)"];
 
 const statItems = [
-  { key: 'total_projects' as const, label: 'Projects', icon: DatabaseIcon, color: 'bg-primary/10 text-primary' },
-  { key: 'total_subjects' as const, label: 'Subjects', icon: Users, color: 'bg-chart-2/10 text-chart-2' },
-  { key: 'total_raw_packages' as const, label: 'Packages', icon: Package, color: 'bg-chart-3/10 text-chart-3' },
-  { key: 'total_datasets' as const, label: 'Datasets', icon: DatabaseIcon, color: 'bg-chart-4/10 text-chart-4' },
-  { key: 'total_assets' as const, label: 'Assets', icon: FileVideo, color: 'bg-chart-5/10 text-chart-5' },
+  { key: "total_projects" as const, label: "Projects", icon: DatabaseIcon, color: "bg-primary/10 text-primary" },
+  { key: "total_subjects" as const, label: "Subjects", icon: Users, color: "bg-chart-2/10 text-chart-2" },
+  { key: "total_raw_packages" as const, label: "Packages", icon: Package, color: "bg-chart-3/10 text-chart-3" },
+  { key: "total_datasets" as const, label: "Datasets", icon: DatabaseIcon, color: "bg-chart-4/10 text-chart-4" },
+  { key: "total_assets" as const, label: "Assets", icon: FileVideo, color: "bg-chart-5/10 text-chart-5" },
 ];
 
 export default function Dashboard() {
@@ -35,12 +35,12 @@ export default function Dashboard() {
   const bulkDelete = useBulkDeletePackages();
   const { toast } = useToast();
 
-  const recentPackages = useMemo(() => recents?.filter(r => r.package.package_type === 'atman') ?? [], [recents]);
-  const recentDatasets = useMemo(() => recents?.filter(r => r.package.package_type === 'vfx') ?? [], [recents]);
+  const recentPackages = useMemo(() => recents?.filter((r) => r.package.package_type === "atman") ?? [], [recents]);
+  const recentDatasets = useMemo(() => recents?.filter((r) => r.package.package_type === "vfx") ?? [], [recents]);
 
   // Wrap RecentIngest items with a top-level `id` for useTableSelection
-  const packagesWithId = useMemo(() => recentPackages.map(r => ({ ...r, id: r.package.id })), [recentPackages]);
-  const datasetsWithId = useMemo(() => recentDatasets.map(r => ({ ...r, id: r.package.id })), [recentDatasets]);
+  const packagesWithId = useMemo(() => recentPackages.map((r) => ({ ...r, id: r.package.id })), [recentPackages]);
+  const datasetsWithId = useMemo(() => recentDatasets.map((r) => ({ ...r, id: r.package.id })), [recentDatasets]);
 
   const {
     selectedIds: selectedPkgIds,
@@ -63,18 +63,18 @@ export default function Dashboard() {
   const handleBulkDeletePackages = async () => {
     const ids = [...selectedPkgIds];
     await bulkDelete.mutateAsync(ids);
-    toast({ title: `${ids.length} package${ids.length > 1 ? 's' : ''} deleted` });
+    toast({ title: `${ids.length} package${ids.length > 1 ? "s" : ""} deleted` });
     clearPkgSelection();
   };
 
   const handleBulkDeleteDatasets = async () => {
     const ids = [...selectedDsIds];
     await bulkDelete.mutateAsync(ids);
-    toast({ title: `${ids.length} dataset${ids.length > 1 ? 's' : ''} deleted` });
+    toast({ title: `${ids.length} dataset${ids.length > 1 ? "s" : ""} deleted` });
     clearDsSelection();
   };
 
-  const storageWithData = storage?.filter(s => s.total_bytes > 0);
+  const storageWithData = storage?.filter((s) => s.total_bytes > 0);
   const hasStorageData = storageWithData && storageWithData.length > 0;
   const totalStorage = storageWithData?.reduce((sum, s) => sum + s.total_bytes, 0) ?? 0;
 
@@ -82,7 +82,10 @@ export default function Dashboard() {
     <div className="p-5 space-y-5">
       <div className="grid grid-cols-3 lg:grid-cols-5 gap-3">
         {statItems.map(({ key, label, icon: Icon, color }) => (
-          <div key={key} className="rounded-lg bg-gradient-to-br from-card to-card/60 border border-border/30 p-3 flex items-center gap-3">
+          <div
+            key={key}
+            className="rounded-lg bg-gradient-to-br from-card to-card/60 border border-border/30 p-3 flex items-center gap-3"
+          >
             <div className={`rounded-lg h-9 w-9 flex items-center justify-center ${color}`}>
               <Icon size={18} />
             </div>
@@ -117,7 +120,7 @@ export default function Dashboard() {
                   <TableRow>
                     <TableHead className="w-[40px]">
                       <Checkbox
-                        checked={allPkgSelected ? true : somePkgSelected ? 'indeterminate' : false}
+                        checked={allPkgSelected ? true : somePkgSelected ? "indeterminate" : false}
                         onCheckedChange={handlePkgSelectAll}
                         className="h-3.5 w-3.5"
                       />
@@ -137,32 +140,50 @@ export default function Dashboard() {
                     ? Array.from({ length: 3 }).map((_, i) => (
                         <TableRow key={i}>
                           {Array.from({ length: 9 }).map((_, j) => (
-                            <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                            <TableCell key={j}>
+                              <Skeleton className="h-4 w-full" />
+                            </TableCell>
                           ))}
                         </TableRow>
                       ))
                     : packagesWithId.map((item, index) => {
                         const { package: pkg, subjectName, subjectId, projectName, projectId } = item;
                         return (
-                        <TableRow key={pkg.id} className={`cursor-pointer ${selectedPkgIds.has(pkg.id) ? 'bg-primary/10 shadow-[inset_3px_0_0_hsl(var(--primary))]' : ''}`} onClick={() => navigate(`/projects/${projectId}/subjects/${subjectId}`)}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedPkgIds.has(pkg.id)}
-                              onClick={(e) => { e.stopPropagation(); handlePkgCheckbox(item, index, e); }}
-                              className="h-3.5 w-3.5"
-                            />
-                          </TableCell>
-                          <TableCell className="font-mono-path text-xs">{pkg.name}</TableCell>
-                          <TableCell><PackageIndicators ingestedAt={pkg.ingested_at} packageType={pkg.package_type} /></TableCell>
-                          <TableCell className="text-xs">{subjectName}</TableCell>
-                          <TableCell className="text-xs">{projectName}</TableCell>
-                          <TableCell><StatusBadge status={pkg.picked_up ? 'picked_up' : pkg.status} /></TableCell>
-                          <TableCell className="text-xs text-right">{pluralize(pkg.file_count, 'file')}</TableCell>
-                          <TableCell className="text-xs text-right">{formatBytes(pkg.total_size_bytes)}</TableCell>
-                          <TableCell className="text-xs text-right text-muted-foreground">
-                            <Tooltip><TooltipTrigger asChild><span>{relativeTime(pkg.ingested_at)}</span></TooltipTrigger><TooltipContent>{formatFullDate(pkg.ingested_at)}</TooltipContent></Tooltip>
-                          </TableCell>
-                        </TableRow>
+                          <TableRow
+                            key={pkg.id}
+                            className={`cursor-pointer ${selectedPkgIds.has(pkg.id) ? "bg-primary/10 shadow-[inset_3px_0_0_hsl(var(--primary))]" : ""}`}
+                            onClick={() => navigate(`/projects/${projectId}/subjects/${subjectId}`)}
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedPkgIds.has(pkg.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePkgCheckbox(item, index, e);
+                                }}
+                                className="h-3.5 w-3.5"
+                              />
+                            </TableCell>
+                            <TableCell className="font-mono-path text-xs">{pkg.name}</TableCell>
+                            <TableCell>
+                              <PackageIndicators ingestedAt={pkg.ingested_at} packageType={pkg.package_type} />
+                            </TableCell>
+                            <TableCell className="text-xs">{subjectName}</TableCell>
+                            <TableCell className="text-xs">{projectName}</TableCell>
+                            <TableCell>
+                              <StatusBadge status={pkg.picked_up ? "picked_up" : pkg.status} />
+                            </TableCell>
+                            <TableCell className="text-xs text-right">{pluralize(pkg.file_count, "file")}</TableCell>
+                            <TableCell className="text-xs text-right">{formatBytes(pkg.total_size_bytes)}</TableCell>
+                            <TableCell className="text-xs text-right text-muted-foreground">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>{relativeTime(pkg.ingested_at)}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>{formatFullDate(pkg.ingested_at)}</TooltipContent>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
                 </TableBody>
@@ -187,7 +208,7 @@ export default function Dashboard() {
                   <TableRow>
                     <TableHead className="w-[40px]">
                       <Checkbox
-                        checked={allDsSelected ? true : someDsSelected ? 'indeterminate' : false}
+                        checked={allDsSelected ? true : someDsSelected ? "indeterminate" : false}
                         onCheckedChange={handleDsSelectAll}
                         className="h-3.5 w-3.5"
                       />
@@ -207,32 +228,50 @@ export default function Dashboard() {
                     ? Array.from({ length: 3 }).map((_, i) => (
                         <TableRow key={i}>
                           {Array.from({ length: 9 }).map((_, j) => (
-                            <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                            <TableCell key={j}>
+                              <Skeleton className="h-4 w-full" />
+                            </TableCell>
                           ))}
                         </TableRow>
                       ))
                     : datasetsWithId.map((item, index) => {
                         const { package: pkg, subjectName, subjectId, projectName, projectId } = item;
                         return (
-                        <TableRow key={pkg.id} className={`cursor-pointer ${selectedDsIds.has(pkg.id) ? 'bg-primary/10 shadow-[inset_3px_0_0_hsl(var(--primary))]' : ''}`} onClick={() => navigate(`/projects/${projectId}/subjects/${subjectId}`)}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedDsIds.has(pkg.id)}
-                              onClick={(e) => { e.stopPropagation(); handleDsCheckbox(item, index, e); }}
-                              className="h-3.5 w-3.5"
-                            />
-                          </TableCell>
-                          <TableCell className="font-mono-path text-xs">{pkg.name}</TableCell>
-                          <TableCell><PackageIndicators ingestedAt={pkg.ingested_at} packageType={pkg.package_type} /></TableCell>
-                          <TableCell className="text-xs">{subjectName}</TableCell>
-                          <TableCell className="text-xs">{projectName}</TableCell>
-                          <TableCell><StatusBadge status={pkg.picked_up ? 'picked_up' : pkg.status} /></TableCell>
-                          <TableCell className="text-xs text-right">{pluralize(pkg.file_count, 'file')}</TableCell>
-                          <TableCell className="text-xs text-right">{formatBytes(pkg.total_size_bytes)}</TableCell>
-                          <TableCell className="text-xs text-right text-muted-foreground">
-                            <Tooltip><TooltipTrigger asChild><span>{relativeTime(pkg.ingested_at)}</span></TooltipTrigger><TooltipContent>{formatFullDate(pkg.ingested_at)}</TooltipContent></Tooltip>
-                          </TableCell>
-                        </TableRow>
+                          <TableRow
+                            key={pkg.id}
+                            className={`cursor-pointer ${selectedDsIds.has(pkg.id) ? "bg-primary/10 shadow-[inset_3px_0_0_hsl(var(--primary))]" : ""}`}
+                            onClick={() => navigate(`/projects/${projectId}/subjects/${subjectId}`)}
+                          >
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedDsIds.has(pkg.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDsCheckbox(item, index, e);
+                                }}
+                                className="h-3.5 w-3.5"
+                              />
+                            </TableCell>
+                            <TableCell className="font-mono-path text-xs">{pkg.name}</TableCell>
+                            <TableCell>
+                              <PackageIndicators ingestedAt={pkg.ingested_at} packageType={pkg.package_type} />
+                            </TableCell>
+                            <TableCell className="text-xs">{subjectName}</TableCell>
+                            <TableCell className="text-xs">{projectName}</TableCell>
+                            <TableCell>
+                              <StatusBadge status={pkg.picked_up ? "picked_up" : pkg.status} />
+                            </TableCell>
+                            <TableCell className="text-xs text-right">{pluralize(pkg.file_count, "file")}</TableCell>
+                            <TableCell className="text-xs text-right">{formatBytes(pkg.total_size_bytes)}</TableCell>
+                            <TableCell className="text-xs text-right text-muted-foreground">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>{relativeTime(pkg.ingested_at)}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>{formatFullDate(pkg.ingested_at)}</TooltipContent>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
                 </TableBody>
@@ -249,7 +288,17 @@ export default function Dashboard() {
                 <div className="h-[160px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={storageWithData} dataKey="total_bytes" nameKey="project_name" cx="50%" cy="50%" innerRadius={40} outerRadius={65} strokeWidth={1} stroke="hsl(225,8%,7%)">
+                      <Pie
+                        data={storageWithData}
+                        dataKey="total_bytes"
+                        nameKey="project_name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={65}
+                        strokeWidth={1}
+                        stroke="hsl(225,8%,7%)"
+                      >
                         {storageWithData.map((_, i) => (
                           <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                         ))}
@@ -260,7 +309,12 @@ export default function Dashboard() {
                         />
                       </Pie>
                       <RechartsTooltip
-                        contentStyle={{ backgroundColor: 'hsl(225,7%,11%)', border: '1px solid hsl(225,5%,18%)', borderRadius: '8px', fontSize: '12px' }}
+                        contentStyle={{
+                          backgroundColor: "hsl(225,7%,11%)",
+                          border: "1px solid hsl(225,5%,18%)",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                        }}
                         formatter={(value: number) => formatBytes(value)}
                       />
                     </PieChart>
@@ -269,7 +323,10 @@ export default function Dashboard() {
                 <div className="space-y-1.5 mt-3">
                   {storageWithData.map((s, i) => (
                     <div key={s.project_name} className="flex items-center gap-2 text-xs">
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+                      />
                       <span className="text-muted-foreground truncate">{s.project_name}</span>
                       <span className="ml-auto text-foreground">{formatBytes(s.total_bytes)}</span>
                     </div>

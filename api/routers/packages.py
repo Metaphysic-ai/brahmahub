@@ -3,14 +3,21 @@
 import json as _json
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from ..database import get_conn, build_update
-from ..models import BulkDeleteRequest, PackageCreate, PackageResponse, PackageSummary, PackageUpdate, PaginatedAssetResponse, PaginatedPackageResponse
+from ..database import build_update, get_conn
+from ..models import (
+    BulkDeleteRequest,
+    PackageCreate,
+    PackageResponse,
+    PackageSummary,
+    PackageUpdate,
+    PaginatedAssetResponse,
+    PaginatedPackageResponse,
+)
 from ..services.metadata import read_face_metadata
 from .assets import _build_asset_filters, _paginated_asset_query
 
@@ -21,9 +28,9 @@ router = APIRouter()
 
 @router.get("", response_model=PaginatedPackageResponse)
 async def list_packages(
-    subject_id: Optional[UUID] = Query(None),
-    package_type: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    subject_id: UUID | None = Query(None),
+    package_type: str | None = Query(None),
+    search: str | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
@@ -60,7 +67,9 @@ async def list_packages(
         rows = await conn.fetch(
             f"SELECT DISTINCT p.* FROM packages p {joins} {where} "
             f"ORDER BY p.ingested_at DESC OFFSET ${idx} LIMIT ${idx + 1}",
-            *params, offset, limit,
+            *params,
+            offset,
+            limit,
         )
         packages = [dict(r) for r in rows]
 
@@ -89,8 +98,7 @@ async def bulk_delete_packages(data: BulkDeleteRequest):
     if not data.ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
     async with get_conn() as conn:
-        result = await conn.execute(
-            "DELETE FROM packages WHERE id = ANY($1::uuid[])", data.ids)
+        result = await conn.execute("DELETE FROM packages WHERE id = ANY($1::uuid[])", data.ids)
         deleted_count = int(result.split()[-1])
         return {"deleted": deleted_count}
 
@@ -105,7 +113,9 @@ async def get_package(package_id: UUID):
         subject_rows = await conn.fetch(
             "SELECT s.id, s.name FROM subjects s "
             "JOIN packages_subjects ps ON s.id = ps.subject_id "
-            "WHERE ps.package_id = $1 ORDER BY s.name", package_id)
+            "WHERE ps.package_id = $1 ORDER BY s.name",
+            package_id,
+        )
         result["linked_subjects"] = [dict(r) for r in subject_rows]
         return result
 
@@ -114,7 +124,8 @@ async def get_package(package_id: UUID):
 async def get_package_summary(package_id: UUID):
     """Aggregate stats for a package — face metadata, pose ranges, quality, etc."""
     async with get_conn() as conn:
-        row = await conn.fetchrow("""
+        row = await conn.fetchrow(
+            """
             SELECT
                 COUNT(*)                                           AS total_assets,
                 COUNT(*) FILTER (WHERE file_type = 'video')        AS video_count,
@@ -154,7 +165,9 @@ async def get_package_summary(package_id: UUID):
                 array_agg(DISTINCT codec)
                     FILTER (WHERE codec IS NOT NULL)               AS codecs
             FROM assets WHERE package_id = $1
-        """, package_id)
+        """,
+            package_id,
+        )
         if not row or row["total_assets"] == 0:
             raise HTTPException(status_code=404, detail="Package not found or has no assets")
         result = dict(row)
@@ -169,14 +182,17 @@ async def get_package_summary(package_id: UUID):
             if meta.get("grid_asset_id"):
                 result["grid_asset_id"] = meta["grid_asset_id"]
 
-        pose_rows = await conn.fetch("""
+        pose_rows = await conn.fetch(
+            """
             SELECT (FLOOR((metadata->'face'->>'yaw')::float / 10) * 10)::int AS y,
                    (FLOOR((metadata->'face'->>'pitch')::float / 10) * 10)::int AS p,
                    COUNT(*) AS count
             FROM assets WHERE package_id = $1 AND asset_type = 'aligned'
               AND metadata->'face'->>'yaw' IS NOT NULL
             GROUP BY 1, 2
-        """, package_id)
+        """,
+            package_id,
+        )
         if pose_rows:
             result["pose_data"] = [dict(r) for r in pose_rows]
 
@@ -190,8 +206,12 @@ async def create_package(data: PackageCreate):
             """INSERT INTO packages (subject_id, name, source_description, disk_path, tags, metadata)
                VALUES ($1, $2, $3, $4, $5, $6)
                RETURNING *""",
-            data.subject_id, data.name, data.source_description,
-            data.disk_path, data.tags, data.metadata,
+            data.subject_id,
+            data.name,
+            data.source_description,
+            data.disk_path,
+            data.tags,
+            data.metadata,
         )
         return dict(row)
 
@@ -234,26 +254,28 @@ async def backfill_face_metadata(package_id: UUID):
                 yield f"data: {_json.dumps({'error': 'Package not found'})}\n\n"
                 return
 
-            rows = await conn.fetch("""
+            rows = await conn.fetch(
+                """
                 SELECT id, disk_path
                 FROM assets
                 WHERE package_id = $1
                   AND asset_type = 'aligned'
                   AND disk_path LIKE '%%.png'
                   AND (metadata->'face' IS NULL OR metadata->'face' = 'null')
-            """, package_id)
+            """,
+                package_id,
+            )
 
             total = len(rows)
             yield f"data: {_json.dumps({'status': 'started', 'total': total})}\n\n"
 
-            loop = asyncio.get_event_loop()
             updated = 0
             errors = 0
             batch_size = 200
 
             with ThreadPoolExecutor(max_workers=8) as executor:
                 for batch_start in range(0, total, batch_size):
-                    batch = rows[batch_start:batch_start + batch_size]
+                    batch = rows[batch_start : batch_start + batch_size]
 
                     def _read(disk_path):
                         return read_face_metadata(disk_path)
@@ -262,7 +284,7 @@ async def backfill_face_metadata(package_id: UUID):
                     updates = []
                     for fut, row in futs:
                         try:
-                            meta = await loop.run_in_executor(None, fut.result, 30)
+                            meta = await asyncio.to_thread(fut.result, 30)
                             if meta:
                                 updates.append((row["id"], meta))
                         except Exception as e:
@@ -274,19 +296,24 @@ async def backfill_face_metadata(package_id: UUID):
                     if updates:
                         ids = [u[0] for u in updates]
                         faces = [_json.dumps(u[1]) for u in updates]
-                        await conn.execute("""
+                        await conn.execute(
+                            """
                             UPDATE assets a
                             SET metadata = jsonb_set(a.metadata, '{face}', v.face::jsonb)
                             FROM unnest($1::uuid[], $2::text[]) AS v(id, face)
                             WHERE a.id = v.id
-                        """, ids, faces)
+                        """,
+                            ids,
+                            faces,
+                        )
                     updated += len(updates)
 
                     yield f"data: {_json.dumps({'status': 'progress', 'processed': min(batch_start + batch_size, total), 'total': total, 'updated': updated})}\n\n"
 
             yield f"data: {_json.dumps({'status': 'aggregating'})}\n\n"
 
-            face_agg = await conn.fetchrow("""
+            face_agg = await conn.fetchrow(
+                """
                 SELECT
                     COUNT(*) FILTER (WHERE asset_type = 'aligned') AS aligned_count,
                     jsonb_agg(DISTINCT metadata->'face'->>'face_type')
@@ -296,7 +323,9 @@ async def backfill_face_metadata(package_id: UUID):
                     MAX((metadata->'face'->>'source_height')::int)
                         FILTER (WHERE metadata->'face'->>'source_height' IS NOT NULL) AS source_height
                 FROM assets WHERE package_id = $1
-            """, package_id)
+            """,
+                package_id,
+            )
 
             merge: dict = {}
             if face_agg:
@@ -309,23 +338,29 @@ async def backfill_face_metadata(package_id: UUID):
                 if face_agg["source_height"]:
                     merge["source_height"] = face_agg["source_height"]
 
-            pose_rows = await conn.fetch("""
+            pose_rows = await conn.fetch(
+                """
                 SELECT (FLOOR((metadata->'face'->>'yaw')::float / 10) * 10)::int AS y,
                        (FLOOR((metadata->'face'->>'pitch')::float / 10) * 10)::int AS p,
                        COUNT(*) AS count
                 FROM assets WHERE package_id = $1 AND asset_type = 'aligned'
                   AND metadata->'face'->>'yaw' IS NOT NULL
                 GROUP BY 1, 2
-            """, package_id)
+            """,
+                package_id,
+            )
             if pose_rows:
                 merge["pose_data"] = [{"y": r["y"], "p": r["p"], "count": r["count"]} for r in pose_rows]
 
-            src = await conn.fetchrow("""
+            src = await conn.fetchrow(
+                """
                 SELECT metadata->'face'->>'source_filepath' AS path,
                        metadata->'face'->>'source_filename' AS name
                 FROM assets WHERE package_id = $1 AND asset_type = 'aligned'
                   AND metadata->'face'->>'source_filepath' IS NOT NULL LIMIT 1
-            """, package_id)
+            """,
+                package_id,
+            )
             if src and src["path"]:
                 merge["source_video_path"] = src["path"]
                 if src["name"]:
@@ -334,7 +369,8 @@ async def backfill_face_metadata(package_id: UUID):
             if merge:
                 await conn.execute(
                     "UPDATE packages SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::text::jsonb WHERE id = $2",
-                    _json.dumps(merge), package_id,
+                    _json.dumps(merge),
+                    package_id,
                 )
 
             pose_count = len(pose_rows) if pose_rows else 0
@@ -346,12 +382,12 @@ async def backfill_face_metadata(package_id: UUID):
 @router.get("/{package_id}/assets", response_model=PaginatedAssetResponse)
 async def list_package_assets(
     package_id: UUID,
-    subject_id: Optional[UUID] = Query(None),
-    file_type: Optional[str] = Query(None),
-    asset_type: Optional[str] = Query(None),
-    picked_up: Optional[bool] = Query(None),
-    search: Optional[str] = Query(None),
-    pose_bins: Optional[str] = Query(None),
+    subject_id: UUID | None = Query(None),
+    file_type: str | None = Query(None),
+    asset_type: str | None = Query(None),
+    picked_up: bool | None = Query(None),
+    search: str | None = Query(None),
+    pose_bins: str | None = Query(None),
     offset: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=500),
 ):

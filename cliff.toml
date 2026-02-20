@@ -1,0 +1,77 @@
+# cliff.toml - git-cliff configuration
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+"""
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}](https://github.com/Metaphysic-ai/brahmahub/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## Unreleased
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**({{ commit.scope }})** {% endif %}\
+{{ commit.message | upper_first }}\
+{% if commit.remote.username %} by @{{ commit.remote.username }}{%- endif %}\
+{% if commit.remote.pr_number %} in \
+[#{{ commit.remote.pr_number }}](https://github.com/Metaphysic-ai/brahmahub/pull/{{ commit.remote.pr_number }})\
+{%- endif %}
+{%- endfor %}
+{% endfor %}
+{%- if previous.version %}
+
+**Full Changelog**: https://github.com/Metaphysic-ai/brahmahub/compare/{{ previous.version }}...{{ version }}
+{%- endif %}
+"""
+trim = true
+
+[remote.github]
+owner = "Metaphysic-ai"
+repo = "brahmahub"
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+
+commit_preprocessors = [
+  # Convert issue/PR references to links
+  { pattern = '\\(#([0-9]+)\\)', replace = "([#${1}](https://github.com/Metaphysic-ai/brahmahub/issues/${1}))" },
+]
+
+commit_parsers = [
+  # Skip automated commits (release workflow + release-please)
+  { message = "^docs: [Uu]pdate changelog", skip = true },
+  { message = "^docs: [Rr]egenerate changelog", skip = true },
+  { message = "^chore\\(main\\): release", skip = true },
+  # Groups ordered by importance (HTML comments control display order, stripped by template)
+  { message = "^.*!:", group = "<!-- 0 -->Breaking Changes" },
+  { message = "^security", group = "<!-- 1 -->Security" },
+  { message = "^feat", group = "<!-- 2 -->Features" },
+  { message = "^fix", group = "<!-- 3 -->Bug Fixes" },
+  { message = "^perf", group = "<!-- 4 -->Performance" },
+  { message = "^refactor", group = "<!-- 5 -->Refactor" },
+  { message = "^doc", group = "<!-- 6 -->Documentation" },
+  { message = "^ci", group = "<!-- 7 -->CI/Build" },
+  { message = "^build", group = "<!-- 7 -->CI/Build" },
+  { message = "^revert", group = "<!-- 8 -->Reverted" },
+  # Skip noisy types (group still used if protect_breaking_commits rescues them)
+  { message = "^style", group = "<!-- 9 -->Style", skip = true },
+  { message = "^test", group = "<!-- 9 -->Testing", skip = true },
+  { message = "^chore", group = "<!-- 9 -->Miscellaneous", skip = true },
+]
+
+protect_breaking_commits = true
+filter_commits = false
+tag_pattern = "v[0-9].*"
+skip_tags = ""
+ignore_tags = ""
+topo_order = false
+sort_commits = "oldest"

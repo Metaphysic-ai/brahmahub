@@ -11,11 +11,14 @@ async def test_list_projects_empty(client: AsyncClient):
 
 
 async def test_create_project(client: AsyncClient):
-    resp = await client.post("/api/projects", json={
-        "name": "pytest-project-create",
-        "description": "Created by test",
-        "project_type": "atman",
-    })
+    resp = await client.post(
+        "/api/projects",
+        json={
+            "name": "pytest-project-create",
+            "description": "Created by test",
+            "project_type": "atman",
+        },
+    )
     assert resp.status_code == 201
     body = resp.json()
     assert body["name"] == "pytest-project-create"
@@ -38,9 +41,12 @@ async def test_get_project_not_found(client: AsyncClient):
 
 async def test_update_project(client: AsyncClient, seed_project: dict):
     pid = str(seed_project["id"])
-    resp = await client.put(f"/api/projects/{pid}", json={
-        "name": "Updated Name",
-    })
+    resp = await client.put(
+        f"/api/projects/{pid}",
+        json={
+            "name": "Updated Name",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["name"] == "Updated Name"
 

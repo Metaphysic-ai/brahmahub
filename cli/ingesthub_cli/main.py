@@ -11,7 +11,6 @@ Usage:
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 from rich.console import Console
@@ -26,7 +25,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from . import db, media
+from . import __version__, db, media
 
 console = Console()
 
@@ -35,7 +34,7 @@ console = Console()
 DEFAULT_PROXY_DIR = os.environ.get("INGESTHUB_PROXY_DIR", "")
 
 
-def _resolve_proxy_dir(source_path: Path, proxy_dir: Optional[str]) -> Path:
+def _resolve_proxy_dir(source_path: Path, proxy_dir: str | None) -> Path:
     """Determine where to store proxies/thumbnails."""
     if proxy_dir:
         return Path(proxy_dir)
@@ -49,7 +48,7 @@ def _resolve_proxy_dir(source_path: Path, proxy_dir: Optional[str]) -> Path:
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(version=__version__)
 def cli():
     """IngestHub CLI — ingest and manage media datasets."""
     pass
@@ -80,7 +79,7 @@ def ingest(
     package: str,
     description: str,
     tags: tuple,
-    proxy_dir: Optional[str],
+    proxy_dir: str | None,
     proxy_height: int,
     skip_proxies: bool,
     recursive: bool,
@@ -99,17 +98,19 @@ def ingest(
     source = Path(source_path).resolve()
     proxy_base = _resolve_proxy_dir(source, proxy_dir)
 
-    console.print(Panel.fit(
-        f"[bold cyan]IngestHub — Ingesting Package[/]\n\n"
-        f"  Source:   {source}\n"
-        f"  Project:  {project} ({project_type})\n"
-        f"  Subject:  {subject}\n"
-        f"  Package:  {package}\n"
-        f"  Tags:     {', '.join(tags) if tags else '(none)'}\n"
-        f"  Proxies:  {'SKIP' if skip_proxies else str(proxy_base)}\n"
-        f"  Mode:     {'DRY RUN' if dry_run else 'LIVE'}",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold cyan]IngestHub — Ingesting Package[/]\n\n"
+            f"  Source:   {source}\n"
+            f"  Project:  {project} ({project_type})\n"
+            f"  Subject:  {subject}\n"
+            f"  Package:  {package}\n"
+            f"  Tags:     {', '.join(tags) if tags else '(none)'}\n"
+            f"  Proxies:  {'SKIP' if skip_proxies else str(proxy_base)}\n"
+            f"  Mode:     {'DRY RUN' if dry_run else 'LIVE'}",
+            border_style="cyan",
+        )
+    )
 
     # ── Scan files ──────────────────────────────────────────
     console.print("\n[bold]Scanning files...[/]")
@@ -120,10 +121,7 @@ def ingest(
         all_files = sorted(f for f in source.iterdir() if f.is_file())
 
     # Skip hidden files and proxy directories
-    all_files = [
-        f for f in all_files
-        if not any(part.startswith(".") for part in f.relative_to(source).parts)
-    ]
+    all_files = [f for f in all_files if not any(part.startswith(".") for part in f.relative_to(source).parts)]
 
     # Classify
     classified = []
@@ -139,8 +137,7 @@ def ingest(
     video_count = sum(1 for _, t in classified if t == "video")
     image_count = sum(1 for _, t in classified if t == "image")
     console.print(
-        f"  Found [green]{len(classified)}[/] media files "
-        f"([blue]{video_count}[/] video, [blue]{image_count}[/] image)"
+        f"  Found [green]{len(classified)}[/] media files ([blue]{video_count}[/] video, [blue]{image_count}[/] image)"
     )
 
     if dry_run:
@@ -161,9 +158,7 @@ def ingest(
         # Handle --force (delete existing package)
         if force:
             try:
-                pkg_id = db.create_package(
-                    conn, subject_id, package, str(source), description, list(tags)
-                )
+                pkg_id = db.create_package(conn, subject_id, package, str(source), description, list(tags))
             except ValueError:
                 console.print(f"  [yellow]⚠ Package '{package}' exists, --force: deleting and re-creating[/]")
                 cur = conn.cursor()
@@ -173,14 +168,10 @@ def ingest(
                 )
                 old_id = cur.fetchone()[0]
                 db.delete_package(conn, old_id)
-                pkg_id = db.create_package(
-                    conn, subject_id, package, str(source), description, list(tags)
-                )
+                pkg_id = db.create_package(conn, subject_id, package, str(source), description, list(tags))
         else:
             try:
-                pkg_id = db.create_package(
-                    conn, subject_id, package, str(source), description, list(tags)
-                )
+                pkg_id = db.create_package(conn, subject_id, package, str(source), description, list(tags))
             except ValueError as e:
                 console.print(f"[red]✗ {e}[/]")
                 sys.exit(1)
@@ -227,23 +218,15 @@ def ingest(
                         # Only generate proxy for non-web codecs, or always
                         # for consistency (web codecs are fast to transcode)
                         if probe.get("needs_proxy", True):
-                            proxy_path = media.generate_video_proxy(
-                                filepath, asset_proxy_dir, max_height=proxy_height
-                            )
+                            proxy_path = media.generate_video_proxy(filepath, asset_proxy_dir, max_height=proxy_height)
                         else:
                             # Web-playable: use original as proxy
                             proxy_path = filepath
 
-                        thumb_path = media.generate_video_thumbnail(
-                            filepath, asset_proxy_dir
-                        )
+                        thumb_path = media.generate_video_thumbnail(filepath, asset_proxy_dir)
                     else:
-                        proxy_path = media.generate_image_proxy(
-                            filepath, asset_proxy_dir
-                        )
-                        thumb_path = media.generate_image_thumbnail(
-                            filepath, asset_proxy_dir
-                        )
+                        proxy_path = media.generate_image_proxy(filepath, asset_proxy_dir)
+                        thumb_path = media.generate_image_thumbnail(filepath, asset_proxy_dir)
 
                     # Track first thumbnail for subject thumbnail
                     if thumb_path and not first_thumb:
@@ -284,15 +267,17 @@ def ingest(
         conn.commit()
 
     # ── Summary ─────────────────────────────────────────────
-    console.print(Panel.fit(
-        f"[bold green]✓ Ingest complete![/]\n\n"
-        f"  Assets ingested:  {count}\n"
-        f"  Total size:       {_fmt_size(total_size)}\n"
-        f"  Videos:           {video_count}\n"
-        f"  Images:           {image_count}\n"
-        f"  Package ID:       {pkg_id}",
-        border_style="green",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold green]✓ Ingest complete![/]\n\n"
+            f"  Assets ingested:  {count}\n"
+            f"  Total size:       {_fmt_size(total_size)}\n"
+            f"  Videos:           {video_count}\n"
+            f"  Images:           {image_count}\n"
+            f"  Package ID:       {pkg_id}",
+            border_style="green",
+        )
+    )
 
 
 # ── LIST command ────────────────────────────────────────────
@@ -350,7 +335,9 @@ def list_subjects(project: str):
             sys.exit(1)
         project_id = row[0]
 
-        cur = conn.cursor(cursor_factory=__import__("psycopg2").extras.RealDictCursor)
+        import psycopg2.extras
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(
             "SELECT * FROM v_subject_summary WHERE project_id = %s ORDER BY name",
             (project_id,),
@@ -410,9 +397,7 @@ def list_packages(project: str, subject: str):
     table.add_column("Tags")
     table.add_column("Ingested", style="dim")
 
-    status_colors = {
-        "ingested": "blue", "processing": "yellow", "ready": "green", "error": "red"
-    }
+    status_colors = {"ingested": "blue", "processing": "yellow", "ready": "green", "error": "red"}
 
     for pkg in packages:
         status = pkg["status"]
@@ -454,15 +439,17 @@ def status():
             cur.execute("SELECT count(*), COALESCE(SUM(file_size_bytes), 0) FROM assets")
             asset_count, total_bytes = cur.fetchone()
 
-        console.print(Panel.fit(
-            f"[bold green]✓ Connected to database[/]\n\n"
-            f"  Projects:  {project_count}\n"
-            f"  Subjects:  {subject_count}\n"
-            f"  Packages:  {package_count}\n"
-            f"  Assets:    {asset_count}\n"
-            f"  Total:     {_fmt_size(total_bytes)}",
-            border_style="green",
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold green]✓ Connected to database[/]\n\n"
+                f"  Projects:  {project_count}\n"
+                f"  Subjects:  {subject_count}\n"
+                f"  Packages:  {package_count}\n"
+                f"  Assets:    {asset_count}\n"
+                f"  Total:     {_fmt_size(total_bytes)}",
+                border_style="green",
+            )
+        )
 
     except Exception as e:
         console.print(f"[red]✗ Could not connect to database: {e}[/]")
@@ -473,7 +460,7 @@ def status():
 # ── Helpers ─────────────────────────────────────────────────
 
 
-def _fmt_size(size_bytes: int) -> str:
+def _fmt_size(size_bytes: int | float) -> str:
     """Format bytes into human-readable size."""
     if not size_bytes:
         return "0 B"

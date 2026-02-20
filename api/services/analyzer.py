@@ -7,10 +7,10 @@ regex-based parsing (VFX aligned extractions).
 
 import json
 import logging
-import os
 import re
 from collections import defaultdict
 from pathlib import Path
+
 from google import genai
 from google.genai import types
 
@@ -19,15 +19,45 @@ from ..config import settings
 logger = logging.getLogger(__name__)
 
 VIDEO_EXTENSIONS = {
-    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm",
-    ".m4v", ".mpg", ".mpeg", ".mxf", ".ts", ".mts", ".m2ts",
-    ".3gp", ".ogv", ".r3d",
+    ".mp4",
+    ".mov",
+    ".avi",
+    ".mkv",
+    ".wmv",
+    ".flv",
+    ".webm",
+    ".m4v",
+    ".mpg",
+    ".mpeg",
+    ".mxf",
+    ".ts",
+    ".mts",
+    ".m2ts",
+    ".3gp",
+    ".ogv",
+    ".r3d",
 }
 
 IMAGE_EXTENSIONS = {
-    ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".webp",
-    ".exr", ".dpx", ".hdr", ".gif", ".heic", ".heif", ".raw",
-    ".cr2", ".cr3", ".nef", ".arw", ".dng",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".tiff",
+    ".tif",
+    ".bmp",
+    ".webp",
+    ".exr",
+    ".dpx",
+    ".hdr",
+    ".gif",
+    ".heic",
+    ".heif",
+    ".raw",
+    ".cr2",
+    ".cr3",
+    ".nef",
+    ".arw",
+    ".dng",
 }
 
 AUDIO_EXTENSIONS = {".wav", ".aiff", ".aif", ".mp3", ".flac", ".ogg", ".m4a"}
@@ -90,7 +120,6 @@ def detect_package_type(source: Path) -> str:
     return "vfx" if indicators >= 2 else "atman"
 
 
-
 def _identity_from_path(file_path: Path, base_dir: Path) -> str:
     """Extract subject/identity name from directory structure.
 
@@ -100,7 +129,7 @@ def _identity_from_path(file_path: Path, base_dir: Path) -> str:
     marker = "/datasets/"
     idx = path_str.find(marker)
     if idx >= 0:
-        after = path_str[idx + len(marker):]
+        after = path_str[idx + len(marker) :]
         # Handle double-underscore format: "dragon__paul_stanley" → "paul_stanley"
         first_component = after.split("/")[0]
         if "__" in first_component:
@@ -147,25 +176,29 @@ def _analyze_vfx(source: Path) -> dict:
         else:
             asset_type = "aligned"
 
-        files_by_subject[subject].append({
-            "original_path": rel_path,
-            "file_type": ftype,
-            "size_bytes": size,
-            "subject": subject,
-            "camera": "cam_a",
-            "asset_type": asset_type,
-            "selected": True,
-        })
+        files_by_subject[subject].append(
+            {
+                "original_path": rel_path,
+                "file_type": ftype,
+                "size_bytes": size,
+                "subject": subject,
+                "camera": "cam_a",
+                "asset_type": asset_type,
+                "selected": True,
+            }
+        )
 
     subjects = []
     for name, files in sorted(files_by_subject.items()):
         subj_size = sum(f["size_bytes"] for f in files)
-        subjects.append({
-            "name": name,
-            "file_count": len(files),
-            "total_size_bytes": subj_size,
-            "files": files,
-        })
+        subjects.append(
+            {
+                "name": name,
+                "file_count": len(files),
+                "total_size_bytes": subj_size,
+                "files": files,
+            }
+        )
 
     return {
         "source_path": str(source),
@@ -286,15 +319,17 @@ def _scan_directory(source: Path) -> list[dict]:
 
         rel_path = str(f.relative_to(source))
         ext = f.suffix.lower()
-        files.append({
-            "path": rel_path,
-            "filename": f.name,
-            "ext": ext,
-            "is_video": ext in VIDEO_EXTENSIONS,
-            "is_audio": ext in AUDIO_EXTENSIONS,
-            "size_mb": round(f.stat().st_size / (1024 * 1024), 2),
-            "tokens": _tokenize(f.stem),
-        })
+        files.append(
+            {
+                "path": rel_path,
+                "filename": f.name,
+                "ext": ext,
+                "is_video": ext in VIDEO_EXTENSIONS,
+                "is_audio": ext in AUDIO_EXTENSIONS,
+                "size_mb": round(f.stat().st_size / (1024 * 1024), 2),
+                "tokens": _tokenize(f.stem),
+            }
+        )
     return files
 
 
@@ -305,7 +340,7 @@ def _call_gemini(file_facts: dict) -> list[dict]:
     Uses response_mime_type="application/json" for guaranteed JSON output.
     """
     if not settings.gemini_api_key:
-        raise ValueError("GOOGLE_API_KEY is not configured")
+        raise ValueError("GEMINI_API_KEY is not configured")
 
     client = genai.Client(api_key=settings.gemini_api_key)
     all_files = file_facts["files"]
@@ -313,7 +348,7 @@ def _call_gemini(file_facts: dict) -> list[dict]:
     manifest: list[dict] = []
 
     for i in range(0, len(all_files), BATCH_SIZE):
-        chunk = all_files[i:i + BATCH_SIZE]
+        chunk = all_files[i : i + BATCH_SIZE]
         batch_num = (i // BATCH_SIZE) + 1
         total_batches = (len(all_files) + BATCH_SIZE - 1) // BATCH_SIZE
 
@@ -337,7 +372,7 @@ def _call_gemini(file_facts: dict) -> list[dict]:
                         max_output_tokens=16384,
                     ),
                 )
-                data = json.loads(response.text)
+                data = json.loads(response.text or "")
                 batch_manifest = data.get("manifest", [])
                 manifest.extend(batch_manifest)
                 logger.info("Batch %d/%d: %d mappings", batch_num, total_batches, len(batch_manifest))
@@ -352,15 +387,45 @@ def _call_gemini(file_facts: dict) -> list[dict]:
 
 
 _GENERIC_DIRS = {
-    "media", "footage", "raw", "proxy", "proxies", "graded", "exports",
-    "output", "rec709_conversion", "rec709", "conversion", "cards", "card",
-    "day_01", "day_02", "day_1", "day_2", "shoot_data", "shared", "common",
-    "cam_a", "cam_b", "camera", "angle_1", "angle_2",
+    "media",
+    "footage",
+    "raw",
+    "proxy",
+    "proxies",
+    "graded",
+    "exports",
+    "output",
+    "rec709_conversion",
+    "rec709",
+    "conversion",
+    "cards",
+    "card",
+    "day_01",
+    "day_02",
+    "day_1",
+    "day_2",
+    "shoot_data",
+    "shared",
+    "common",
+    "cam_a",
+    "cam_b",
+    "camera",
+    "angle_1",
+    "angle_2",
 }
 
 _GRADED_SUFFIXES = {
-    "_graded", "_color", "_colour", "_grade", "_lut", "_cc",
-    "_rec709", "_conform", "_export", "_dnxhd", "_prores",
+    "_graded",
+    "_color",
+    "_colour",
+    "_grade",
+    "_lut",
+    "_cc",
+    "_rec709",
+    "_conform",
+    "_export",
+    "_dnxhd",
+    "_prores",
 }
 
 
@@ -381,7 +446,7 @@ def _validate_subject_assignments(manifest_lookup: dict, all_files: list) -> dic
     if total == 0:
         return manifest_lookup
 
-    top_subject = max(subject_counts, key=subject_counts.get)
+    top_subject = max(subject_counts, key=lambda k: subject_counts[k])
     if subject_counts[top_subject] / total <= 0.8:
         return manifest_lookup  # Distribution looks reasonable
 
@@ -400,8 +465,11 @@ def _validate_subject_assignments(manifest_lookup: dict, all_files: list) -> dic
 
     logger.info(
         "LLM assigned %d/%d files to '%s' but paths suggest %d subjects: %s. Redistributing.",
-        subject_counts[top_subject], total, top_subject,
-        len(real_candidates), list(real_candidates.keys()),
+        subject_counts[top_subject],
+        total,
+        top_subject,
+        len(real_candidates),
+        list(real_candidates.keys()),
     )
 
     for file_info in all_files:
@@ -510,7 +578,6 @@ def _analyze_atman(source: Path) -> dict:
 
     for file_info in all_files:
         rel_path = file_info["path"]
-        full_path = source / rel_path
         size = int(file_info["size_mb"] * 1024 * 1024)
         total_size += size
 
@@ -536,12 +603,14 @@ def _analyze_atman(source: Path) -> dict:
     subjects = []
     for name, files in sorted(files_by_subject.items()):
         subj_size = sum(f["size_bytes"] for f in files)
-        subjects.append({
-            "name": name,
-            "file_count": len(files),
-            "total_size_bytes": subj_size,
-            "files": files,
-        })
+        subjects.append(
+            {
+                "name": name,
+                "file_count": len(files),
+                "total_size_bytes": subj_size,
+                "files": files,
+            }
+        )
 
     return {
         "source_path": str(source),
@@ -550,7 +619,6 @@ def _analyze_atman(source: Path) -> dict:
         "total_size_bytes": total_size,
         "subjects": subjects,
     }
-
 
 
 def analyze_path(source_path: str) -> dict:

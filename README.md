@@ -1,122 +1,81 @@
 # BrahmaHub
 
-Data catalog for browsing and managing gen AI training data. Scans media directories, extracts metadata, generates web-playable proxies, and provides a React frontend for browsing projects, subjects, packages, and assets.
+[![CI](https://github.com/Metaphysic-ai/brahmahub/actions/workflows/ci.yml/badge.svg)](https://github.com/Metaphysic-ai/brahmahub/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Metaphysic-ai/brahmahub/actions/workflows/codeql.yml/badge.svg)](https://github.com/Metaphysic-ai/brahmahub/actions/workflows/codeql.yml)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white)
+![Node 24](https://img.shields.io/badge/node-24-5fa04e?logo=node.js&logoColor=white)
+![mise](https://img.shields.io/badge/mise-task_runner-4e4e91)
 
-## Prerequisites
+Data catalog for browsing and managing gen AI training data. Scans media directories, extracts metadata, generates web-playable proxies, and provides a web UI for browsing projects, subjects, packages, and assets.
 
-| Dependency         | Version    | What for                                      |
-| ------------------ | ---------- | --------------------------------------------- |
-| Python             | 3.9+       | API backend                                   |
-| Node.js            | 18+        | Frontend build                                |
-| Docker + Compose   | any recent | PostgreSQL database                           |
-| ffmpeg + ffprobe   | 5.x+       | Media processing (proxy/thumbnail generation) |
+---
 
-## Getting Started
+## Quick Start
+
+You need [mise](https://mise.jdx.dev/) (2026.2+), PostgreSQL 16+, and ffmpeg. mise manages everything else (Python, Node, pnpm, ruff, etc.).
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/cedahlberg/brahmahub.git
+# 1. Clone and enter
+git clone https://github.com/Metaphysic-ai/brahmahub.git
 cd brahmahub
 
-# 2. Create your .env file
-cp .env.example .env
+# 2. Trust mise config and bootstrap
+#    Creates .env, database, installs all runtimes + deps + git hooks
+mise trust
+mise run setup
+
+# 3. Edit .env — set at minimum:
+#    MEDIA_ROOT_PATHS=/mnt/data,/mnt/x
+#    GEMINI_API_KEY=your-key-here
+
+# 4. Start everything
+mise run dev
 ```
 
-Edit `.env` and set at minimum:
+> [!NOTE]
+> Setup assumes the PostgreSQL superuser password is `postgres`. Override with `PGPASSWORD=yourpass mise run setup`.
 
-```bash
-# Point to the root(s) where your media lives.
-# The API serves files from these directories via /media/ URLs.
-MEDIA_ROOT_PATHS=/mnt/data,/mnt/x
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:8080 |
+| API | http://localhost:8000/api |
+| API docs | http://localhost:8000/docs |
 
-# Google Gemini API key (needed for ATMAN package analysis during ingest)
-GOOGLE_API_KEY=your-key-here
-```
-
-Then start everything:
-
-```bash
-# 3. Run it — creates venv, installs deps, starts DB, migrates, starts API + frontend
-make dev
-```
-
-That's it. Open <http://localhost:8080> in your browser.
-
-- Frontend: <http://localhost:8080>
-- API: <http://localhost:8000/api>
-- API docs: <http://localhost:8000/docs>
-
-## Make Targets
-
-| Target | Description |
-| ------ | ----------- |
-| `make dev` | Start everything (DB + migrate + API + frontend) |
-| `make stop` | Stop everything |
-| `make status` | Show what's running |
-| `make db` | Start PostgreSQL only |
-| `make db-shell` | Open psql shell |
-| `make migrate` | Run SQL migrations |
-| `make api` | Start API only (:8000) |
-| `make frontend` | Start frontend only (:8080) |
-| `make test` | Run all tests (API + frontend) |
-| `make test-api` | API tests only (pytest) |
-| `make test-fe` | Frontend tests only (vitest) |
-| `make typecheck` | TypeScript type check |
-| `make lint` | Lint frontend |
-
-## What `make dev` Does
-
-1. Starts PostgreSQL 16 in Docker (if not already running)
-2. Runs SQL migrations from `db/migrations/`
-3. Creates a Python `.venv` and installs `api/requirements.txt`
-4. Installs frontend npm packages
-5. Starts the FastAPI server on `:8000` (with hot reload)
-6. Starts the Vite dev server on `:8080` (with HMR)
-
-All dependencies are installed automatically on first run. Subsequent runs skip what's already installed.
+---
 
 ## Project Structure
 
-```text
-brahmahub/
-  api/                  # FastAPI backend (async, asyncpg)
-    routers/            #   Route handlers
-    services/           #   Business logic (analyzer, metadata)
-    config.py           #   Settings from environment
-    database.py         #   asyncpg connection pool
-    models.py           #   Pydantic models
-    main.py             #   App entry point
-  frontend/             # React + TypeScript + Vite
-    src/
-      components/       #   UI components (shadcn/ui + custom)
-      pages/            #   Route pages
-      hooks/            #   React Query hooks
-      services/         #   API client functions
-      types/            #   TypeScript interfaces
-  cli/                  # CLI ingest tool (`ihub`)
-  db/migrations/        # SQL migrations (run in order by `make migrate`)
-  tests/                # API integration tests (pytest + httpx)
-  docker-compose.yml    # PostgreSQL + optional pgAdmin
-  Makefile              # All dev commands
+```
+api/                  # FastAPI backend (async, asyncpg)
+  routers/            #   Route handlers
+  services/           #   Business logic (analyzer, metadata, datasets)
+  config.py           #   Settings from environment
+  database.py         #   asyncpg connection pool
+  models.py           #   Pydantic models
+  main.py             #   App entry point + lifespan
+frontend/             # React + TypeScript + Vite + shadcn/ui
+  src/
+    pages/            #   Route pages
+    components/       #   UI components
+    hooks/            #   TanStack Query hooks
+    services/         #   API client functions
+    types/            #   TypeScript interfaces
+cli/                  # CLI ingest tool (ihub)
+db/migrations/        # SQL migrations
+deploy/               # systemd + Traefik configs
+tests/                # API integration tests (pytest + httpx)
 ```
 
-## Environment Variables
-
-| Variable | Default | Description |
-| -------- | ------- | ----------- |
-| `DATABASE_URL` | `postgresql://ingesthub:...@localhost:5432/ingesthub` | Database connection URL |
-| `MEDIA_ROOT_PATHS` | _(none)_ | Comma-separated dirs the API can serve files from |
-| `PROXY_DIR` | `.ingesthub_proxies` | Where generated proxies and thumbnails are stored |
-| `DATASETS_ROOT` | _(none)_ | Root dir for dataset symlink mapping during ingest |
-| `GOOGLE_API_KEY` | _(none)_ | Gemini API key for ATMAN path analysis |
-| `CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
-| `API_PORT` | `8000` | API server port |
-| `DB_POOL_MIN` / `DB_POOL_MAX` | `2` / `10` | asyncpg connection pool size |
+---
 
 ## Data Model
 
-```text
-Project > Subject > Package > Asset
+```mermaid
+graph LR
+    A[Project] --> B[Subject]
+    B --> C[Package]
+    C --> D[Asset]
+    B -. "M:M" .-> C
 ```
 
 - **Projects** group related work (e.g. a client engagement)
@@ -126,22 +85,62 @@ Project > Subject > Package > Asset
 
 Packages can belong to multiple subjects (M:M via `packages_subjects`).
 
-## Development
+---
 
-**Adding a migration:**
-Create a new `.sql` file in `db/migrations/` with the next number prefix (e.g. `002_add_something.sql`), then run `make migrate`.
+## Architecture
 
-**Running tests:**
-
-```bash
-make test          # all tests (31 API + 32 frontend)
-make test-api      # pytest only
-make test-fe       # vitest only
+```mermaid
+graph LR
+    A[Internet / LAN] --> B["Traefik :443
+    TLS termination"]
+    B --> C["FastAPI :8000"]
+    C --> D["/api/* — REST API"]
+    C --> E["/media/* — file serving"]
+    C --> F["/* — frontend/dist/ (SPA)"]
 ```
 
-**Resetting the database:**
+- **systemd** manages the process (`Restart=always` for self-update restarts)
+- **Traefik** handles TLS (Let's Encrypt DNS-01 / Route53) and reverse proxying
+- **FastAPI** serves both the API and the pre-built frontend (`frontend/dist/`)
+- **Migrations** run automatically at startup via the lifespan
+- **Auto-update** checks GitHub Releases every 5 minutes and applies updates automatically (git checkout + frontend dist download + systemd restart)
 
-```bash
-docker compose down -v    # destroys the DB volume
-make dev                  # recreates everything from scratch
-```
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `DATABASE_URL` | `postgresql://ingesthub:...@localhost:5432/ingesthub` | Database connection URL |
+| `MEDIA_ROOT_PATHS` | — | Comma-separated dirs the API can serve files from |
+| `PROXY_DIR` | `.ingesthub_proxies` | Where generated proxies and thumbnails are stored |
+| `DATASETS_ROOT` | — | Root dir for dataset symlink mapping during ingest |
+| `GEMINI_API_KEY` | — | Gemini API key for ATMAN path analysis |
+| `CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
+| `UPDATE_REPO` | — | GitHub repo for self-update (e.g., `Metaphysic-ai/brahmahub`) |
+| `GITHUB_APP_ID` | — | `brahmahub-updater` App ID |
+| `GITHUB_PRIVATE_KEY_PATH` | — | Path to updater app `.pem` file |
+| `GITHUB_INSTALLATION_ID` | — | Updater app installation ID |
+| `AUTO_UPDATE_INTERVAL` | `300` | Seconds between update checks (0 to disable) |
+
+---
+
+## GitHub Apps
+
+Two apps handle automation, separated by least privilege.
+
+| App | Purpose | Permissions | Config |
+|-----|---------|-------------|--------|
+| `brahmahub-updater` | Production: pull releases | Contents: **read** | Server `.env` |
+| `brahmahub-release` | CI: create + merge Release PRs | Contents: **read/write**, PRs: **read/write** | GitHub Actions vars/secrets |
+
+**Why two?** The updater runs on the production server with a PEM on disk — read-only limits damage if the key leaks. The release app runs only in CI and has write access scoped to creating Release PRs and pushing changelogs. It bypasses branch protection so Release PRs auto-merge without manual approval.
+
+> [!TIP]
+> See [`deploy/README.md`](deploy/README.md#github-app-setup) for step-by-step setup instructions for both apps.
+
+---
+
+<p align="center">
+  <a href="DEVELOPMENT.md">Development Guide</a> · <a href="deploy/README.md">Deployment Guide</a>
+</p>

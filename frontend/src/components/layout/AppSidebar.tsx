@@ -1,19 +1,33 @@
-import { LayoutDashboard, FolderOpen, Users, Package, Database, PanelLeftClose, PanelLeft, Search, Plus } from 'lucide-react';
-import { NavLink } from '@/components/NavLink';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AddPackageDialog } from '@/components/AddPackageDialog';
-import { useState } from 'react';
+import {
+  Database,
+  FolderOpen,
+  LayoutDashboard,
+  Package,
+  PanelLeft,
+  PanelLeftClose,
+  Plus,
+  Search,
+  Users,
+} from "lucide-react";
+import { useState } from "react";
+import { AddPackageDialog } from "@/components/AddPackageDialog";
+import { NavLink } from "@/components/NavLink";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useSystemInfo } from "@/hooks/useSystem";
+import { formatVersionShort } from "@/lib/version";
 
 export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const [ingestOpen, setIngestOpen] = useState(false);
   const [datasetOpen, setDatasetOpen] = useState(false);
+  const { data: systemInfo } = useSystemInfo();
+  const serverUpdateAvailable = systemInfo?.update_available === true;
 
   return (
     <aside
       className={`flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 ${
-        collapsed ? 'w-14' : 'w-52'
+        collapsed ? "w-14" : "w-52"
       }`}
     >
       <div className="flex items-center gap-2 px-3 h-12 border-b border-sidebar-border">
@@ -34,7 +48,12 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
 
       <div className="px-2 pt-3 pb-1">
         {collapsed ? (
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground hover:text-sidebar-primary-foreground" onClick={onOpenSearch}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-sidebar-foreground hover:text-sidebar-primary-foreground"
+            onClick={onOpenSearch}
+          >
             <Search size={16} />
           </Button>
         ) : (
@@ -104,7 +123,7 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
             <button
               onClick={() => setIngestOpen(true)}
               className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-all duration-200 ${
-                collapsed ? 'justify-center' : ''
+                collapsed ? "justify-center" : ""
               }`}
             >
               <Plus size={16} />
@@ -118,7 +137,7 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
             <button
               onClick={() => setDatasetOpen(true)}
               className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-all duration-200 ${
-                collapsed ? 'justify-center' : ''
+                collapsed ? "justify-center" : ""
               }`}
             >
               <Database size={16} />
@@ -129,9 +148,28 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch?: () => void }) {
         </Tooltip>
       </div>
 
-      <div className="border-t border-sidebar-border/40 px-3 py-2.5 flex items-center gap-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-status-ready shrink-0" />
-        {!collapsed && <span className="text-2xs text-sidebar-foreground/40">v0.1.0-dev</span>}
+      <div className="border-t border-sidebar-border/40 px-3 py-2.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
+              <span
+                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                  serverUpdateAvailable ? "bg-primary animate-pulse" : "bg-status-ready"
+                }`}
+              />
+              {!collapsed && (
+                <span className="text-xs text-sidebar-foreground/40">
+                  {serverUpdateAvailable ? `${systemInfo?.latest?.tag_name} available` : formatVersionShort()}
+                </span>
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side={collapsed ? "right" : "top"}>
+            {serverUpdateAvailable
+              ? `Current: ${formatVersionShort()} · ${systemInfo?.latest?.tag_name} available`
+              : `Version: ${formatVersionShort()}`}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <AddPackageDialog open={ingestOpen} onOpenChange={setIngestOpen} forcedPackageType="atman" />

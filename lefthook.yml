@@ -1,0 +1,56 @@
+min_version: 2.0.0
+
+pre-commit:
+  piped: true
+  commands:
+    ruff-format:
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+    ruff-lint:
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+    biome:
+      glob: "*.{ts,tsx,js,jsx,json,css}"
+      root: "frontend/"
+      run: pnpm biome check --write --diagnostic-level=error {staged_files}
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+    api-lint:
+      run: uv run ruff check .
+      fail_text: "Python lint failed. Run: mise run fix:api"
+    api-typecheck:
+      run: uv run ty check
+      fail_text: "Python type errors. Run: mise run typecheck:api"
+    api-test:
+      run: uv run pytest tests/ -v
+      fail_text: "API tests failed. Run: mise run test:api"
+    frontend-lint:
+      root: "frontend/"
+      run: pnpm biome check .
+      fail_text: "Frontend lint failed. Run: mise run fix:fe"
+    frontend-typecheck:
+      root: "frontend/"
+      run: pnpm tsc --noEmit
+      fail_text: "Frontend type errors. Run: mise run typecheck:fe"
+    frontend-test:
+      root: "frontend/"
+      run: pnpm test
+      fail_text: "Frontend tests failed. Run: mise run test:fe"
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: |
+        msg=$(head -1 {1})
+        if ! echo "$msg" | grep -qE '^((fixup|squash|amend)! )?(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\((api|frontend|cli|db|deploy)\))?!?: .+'; then
+          echo "Invalid commit message: $msg"
+          echo "Expected: type(scope): description"
+          echo "Types: feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
+          echo "Scopes: api|frontend|cli|db|deploy"
+          exit 1
+        fi
